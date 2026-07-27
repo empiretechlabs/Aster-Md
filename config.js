@@ -59,7 +59,7 @@ global.save_status_from =  process.env.SAVE_STATUS_FROM  || "null,234xxxxxxxx";
 global.read_status_from =  process.env.READ_STATUS_FROM  ||  "234xxxxxxxx";
 global.api_smd = "https://empiretech-api.hf.space" // do not change
 global.scan = "https://empire-md-session-yfpn.onrender.com"; // DO NOT CHANGE OR TOUCH
-global.SESSION_ID = process.env.SESSION_ID || "" // PUT SESSION ID HERE
+global.SESSION_ID = process.env.SESSION_ID || "EMPIRE-MD×OYxEFaBD#lu3thVbpPnwGJlQ-YViUWVSig2oZmrfT2YFGHuYx4UY" // PUT SESSION ID HERE
 
 //========================= [ LANGUAGE & THEME ] =========================\\
 // LANGUAGE: en, ur, ar, fr, ha, es, it  |  THEME: EMPIRE, PARKER (branding/images)
