@@ -1,3 +1,10 @@
 node_modules
 package-lock.json
 Aster-Md-Plugins
+.env
+session/
+lib/store.json
+lib/database/bot_.json
+lib/database/sck.json
+lib/database/sck1.json
+temp/

@@ -95,6 +95,9 @@ smd({
   restartBotProcess();
 });
 
+const fs = require("fs");
+const path = require("path");
+
 // ==================== LISTPLUGIN COMMAND ====================
 smd({
   cmdname: "listplugin",
@@ -104,29 +107,31 @@ smd({
   use: "<name>"
 }, async (message) => {
   try {
-    let pluginData = await smdJson('https://raw.githubusercontent.com/efeurhobobullish/Empire-Md-Plugins/refs/heads/main/plugins/listPlugin.json');
+    const localList = path.join(__dirname, "listPlugin.json");
+    const remoteList = "https://raw.githubusercontent.com/empiretechlabs/Aster-Md/main/plugins/listPlugin.json";
+    let pluginData = fs.existsSync(localList)
+      ? JSON.parse(fs.readFileSync(localList, "utf8"))
+      : await smdJson(remoteList);
 
-    // Display main plugins
     if (pluginData && pluginData.result && pluginData.result[0]) {
-      let pluginList = '';
+      let pluginList = "*Aster-Md Official Plugins*\n\n";
       for (let i = 0; i < pluginData.result.length; i++) {
         pluginList += pluginData.result[i].name + ": _" + pluginData.result[i].url + "_\n\n";
       }
 
       let thumbnailBuffer = await smdBuffer("https://telegra.ph/file/2fa8e0e24eea3f363d5f6.jpg");
       var contextInfo = {
-        ...(await message.bot.contextInfo("ᴇᴍᴘɪʀᴇ-ᴍᴅ", "Pʟᴜɢɪɴꜱ", thumbnailBuffer ? thumbnailBuffer : log0, 1, gurl, '1'))
+        ...(await message.bot.contextInfo("Aster-Md", "Plugins", thumbnailBuffer ? thumbnailBuffer : log0, 1, gurl, "1"))
       };
 
       await message.reply(pluginList, { contextInfo: contextInfo });
     }
 
-    // Display external plugins
     if (pluginData && pluginData.external && pluginData.external[0]) {
-      let externalList = '';
+      let externalList = "*Aster-Md External Modules*\n\n";
       let externalThumbnail = await smdBuffer("https://telegra.ph/file/369a41986ee5c49db251d.jpg");
       var contextInfo = {
-        ...(await message.bot.contextInfo("ᴇᴍᴘɪʀᴇ-ᴍᴅ", "ᴇxᴛᴇʀɴᴀʟ ᴍᴏᴅᴜʟᴇ", externalThumbnail ? externalThumbnail : log0, 1, gurl, '1'))
+        ...(await message.bot.contextInfo("Aster-Md", "External Modules", externalThumbnail ? externalThumbnail : log0, 1, gurl, "1"))
       };
 
       for (let i = 0; i < pluginData.external.length; i++) {

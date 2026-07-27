@@ -31,7 +31,8 @@ const {
   Config,
   tlang,
   langText,
-  tr
+  tr,
+  styletext
 } = require('../lib/');
 
 let mtypes = ["imageMessage", "videoMessage", "stickerMessage"];
@@ -441,7 +442,6 @@ smd({
       (searchText ? "```🔢Reply the number you wants to select``` \n\n" : 
       "```\t\t" + prefix + "styly Empire(For all text)\n\t\t" + prefix + "styly 19 Empire(For specific text)```\n\n");
     
-    let { styletext } = require("../lib/scraper");
     let selectedIndex = searchText ? parseInt(searchText) : '';
     searchText = selectedIndex && !isNaN(selectedIndex) ? searchText.slice(2) : searchText;
     

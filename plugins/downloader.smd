@@ -1,10 +1,10 @@
-const { tlang, smd, fetchJson, smdJson, yt, sleep, botpic, getBuffer, smdBuffer, prefix, Config, langText, tr } = require(lib_dir);
+const { tlang, smd, fetchJson, smdJson, yt, sleep, botpic, getBuffer, smdBuffer, prefix, Config, langText, tr } = require('../lib');
 const googleTTS = require("google-tts-api");
 const yts = require('yt-search');
 const fs = require('fs-extra');
 const axios = require('axios');
 const fetch = require('node-fetch');
-const { cmd } = require(lib_dir + '/plugins');
+const { cmd } = require('../lib/plugins');
 
 // ==================== TELEGRAM STICKERS ====================
 smd({
@@ -72,7 +72,7 @@ smd({
 }, async (message, query) => {
   try {
     if (!query) return await message.send('*_Give Me Search Query_*');
-    let { wikimedia } = require(lib_dir);
+    let { wikimedia } = require('../lib');
     let results = (await wikimedia(query)) || [];
     if (!results || !results[0]) return await message.send('*_No Results Found!_*');
     let limit = message.iscreator && query.split('|')[1] === 'all' ? results.length : results.length > 5 ? 5 : results.length;

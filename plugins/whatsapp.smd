@@ -241,15 +241,12 @@ cmd({
   'desc': "Save Message to log number",
   'category': "whatsapp",
   'filename': __filename
-}, async (message, args, { cmdName }) => {
+}, async (message) => {
   try {
     if (!message.quoted) {
-      return await message.reply(langText("msgs", "reply_msg", {}, message.userLang || global.currentUserLang))
+      return await message.reply(langText("msgs", "reply_msg", {}, message.userLang || global.currentUserLang));
     }
-    message.bot.forwardOrBroadCast(message.sender, message.quoted, { quoted: { key: message.quoted.key, 
-    message: message.quoted.message 
-    } });
-
+    await message.bot.copyNForward(message.sender, message.quoted, false);
   } catch (error) {
     await message.error(error + "\n\ncommand : save", error);
   }
@@ -508,34 +505,41 @@ cmd({
   'filename': __filename
 }, async (message, args) => {
   try {
-    // Fix: check reply_message.msg.viewOnce
-    var viewOnceMessage = message.reply_message && message.reply_message.msg && message.reply_message.msg.viewOnce ? message.reply_message : false;
-    
-    if (!viewOnceMessage) {
+    const reply = message.reply_message;
+    if (!reply) {
       return message.reply("```Please Reply A ViewOnce Message```");
     }
-    
-    let fakeMessage = {
-      'key': viewOnceMessage.key,
-      'message': {
-        'conversation': "```[VIEWONCE FOUND DOWNLOAD 100%]```"
-      }
+
+    let mediaHolder = { ...reply };
+    if (reply.message?.viewOnceMessage?.message) {
+      const inner = reply.message.viewOnceMessage.message;
+      const mtype2 = Object.keys(inner)[0];
+      mediaHolder.msg = inner[mtype2];
+      mediaHolder.mtype2 = mtype2;
+      mediaHolder.mtype = mtype2.replace(/Message$/i, "");
+    } else if (!reply.msg?.viewOnce) {
+      return message.reply("```Please Reply A ViewOnce Message```");
+    }
+
+    const fakeMessage = {
+      key: reply.key,
+      message: { conversation: "```[VIEWONCE FOUND DOWNLOAD 100%]```" }
     };
-    
-    let mediaUrl = await message.bot.downloadAndSaveMediaMessage(viewOnceMessage.msg);
-    
-    // Send to current chat if 'chat', 'here', or 'gc' is requested; otherwise default to message.sender (private DM)
+
+    const mediaBuffer = await message.bot.downloadMediaMessage(mediaHolder);
+    const mediaType = (mediaHolder.mtype2 || mediaHolder.mtype || "imageMessage").split("Message")[0];
+
     let targetJid = message.sender;
-    let input = (args || '').trim().toLowerCase();
-    if (['chat', 'here', 'gc'].includes(input)) {
+    const input = (args || "").trim().toLowerCase();
+    if (["chat", "here", "gc"].includes(input)) {
       targetJid = message.chat;
     }
-    
+
     await message.bot.sendMessage(targetJid, {
-      [viewOnceMessage.mtype2.split('Mes')[0]]: { 'url': mediaUrl },
-      'caption': viewOnceMessage.body
-    }, { 'quoted': fakeMessage });
-    
+      [mediaType]: mediaBuffer,
+      mimetype: mediaHolder.msg?.mimetype,
+      caption: reply.body
+    }, { quoted: fakeMessage });
   } catch (error) {
     await message.error(error + "\n\ncommand: vv", error);
   }

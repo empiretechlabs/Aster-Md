@@ -26,10 +26,11 @@ let {
   listLanguages,
   getLangName,
   langText,
-  reloadLocale
+  tr,
+  heroku,
+  render,
+  koyeb
 } = require('../lib');
-
-const { heroku, render, koyeb } = require('../lib/koyeb+heroku+render');
 
 const appName = Config.HEROKU_APP_NAME ? Config.HEROKU_APP_NAME.toLowerCase() : '';
 const authToken = Config.HEROKU_API_KEY;

@@ -1,4 +1,4 @@
-let { smd, smdBuffer, tlang, sleep, langText, tr } = require(global.lib_dir || "../lib");
+let { smd, smdBuffer, tlang, sleep, langText, tr } = require("../lib");
 let fs = require('fs');
 
 // Character trait arrays for random generation

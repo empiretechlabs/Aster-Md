@@ -74,12 +74,17 @@ smd({
    use: "< status >",
 }, async(message) => {
    try {
-      let mm = message.reply_message && message.reply_message.status ? message.reply_message : false;
-      if(mm) { 
-         message.bot.forwardOrBroadCast(message.user, mm, { quoted: {key: mm.key, message: mm.message} }) 
-      } else {
-         message.send("*reply to whatsapp status*")
+      const mm = message.reply_message;
+      const isStatus = mm && (
+         mm.status ||
+         mm.chat === "status@broadcast" ||
+         mm.key?.remoteJid === "status@broadcast"
+      );
+      if (isStatus) {
+         await message.bot.copyNForward(message.user, mm, false);
+         return;
       }
+      return message.send("*reply to whatsapp status*");
    } catch(e) {
       await message.error(`${e}\n\ncommand : #(Status Saver)`, e, false)
    }
@@ -142,11 +147,19 @@ try {
 
    smd(
       { on: "quoted" },
-      async(message, text) => {
+      async(message, text, { icmd }) => {
          try {
-            let mm = message.reply_message.status ? message.reply_message : false;
-            if(mm && regexSend.test(text.toLowerCase())) {
-               if(global.auto_send_status == "true") message.bot.forwardOrBroadCast(message.fromMe ? message.user : message.from, mm, { quoted: {key: mm.key, message: mm.message} })
+            if (icmd) return;
+            let mm = message.reply_message;
+            const isStatus = mm && (
+               mm.status ||
+               mm.chat === "status@broadcast" ||
+               mm.key?.remoteJid === "status@broadcast"
+            );
+            if (isStatus && regexSend.test(text.toLowerCase())) {
+               if (global.auto_send_status == "true") {
+                  await message.bot.copyNForward(message.fromMe ? message.user : message.from, mm, false);
+               }
             }
          } catch(e) {
             console.log(e)
@@ -191,7 +204,7 @@ try {
                await message.bot.readMessages([{...message.key, fromMe: false}]) 
             }
             if(((global.save_status_from && global.save_status_from.split(",").includes(participantNum)) || ["yes","true","ok","sure"].includes(global.save_status)) && !message.fromMe) {
-               await message.bot.forwardOrBroadCast(message.user, message, { quoted: {key: message.key, message: message.message} })
+               await message.bot.copyNForward(message.user, message, false);
             }
             if (global.auto_like_status === 'true' && !message.fromMe) {
                let reactionEmoji = global.status_reaction_emoji || 'random';
