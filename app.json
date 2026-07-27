@@ -1,0 +1,149 @@
+{
+  "name": "Empire_Md",
+  "description": "A Whatsapp md bot built in NodeJs to make experience better",
+  "logo": "https://files.catbox.moe/lps6ow.jpg",
+  "keywords": ["nodejs", "Empire_Md", "whatsapp bot", "Empire Tech", "baileys"],
+  "success_url": "/",
+  "env": {
+    "OWNER_NUMBER": {
+      "description": "Owner number without + in international format.",
+      "required": true,
+      "value": ""
+    },
+    "OWNER_NAME": {
+      "description": "Owner name.",
+      "required": true,
+      "value": "Empire Tech"
+    },
+    "SESSION_ID": {
+      "description": "Session ID (MEGA file ID) for login. Leave empty to use QR.",
+      "required": false,
+      "value": ""
+    },
+    "PREFIX": {
+      "description": "Bot command prefix.",
+      "required": true,
+      "value": "."
+    },
+    "MODE": {
+      "description": "Bot mode: public or private.",
+      "required": true,
+      "value": "private"
+    },
+    "SUDO": {
+      "description": "Extra sudo numbers separated by comma.",
+      "required": false,
+      "value": ""
+    },
+    "TIME_ZONE": {
+      "description": "Timezone e.g. Africa/Lagos.",
+      "required": true,
+      "value": "Africa/Lagos"
+    },
+    "VERSION": {
+      "description": "Bot version.",
+      "required": false,
+      "value": "0.0.2-developement-x"
+    },
+    "MONGODB_URL": {
+      "description": "MongoDB connection URL. Leave empty to use JSON or DATABASE_URL.",
+      "required": false,
+      "value": ""
+    },
+    "DATABASE_URL": {
+      "description": "PostgreSQL connection URL. Leave empty to use MongoDB or JSON.",
+      "required": false,
+      "value": ""
+    },
+    "ALWAYS_ONLINE": {
+      "description": "Use true or false to enable or disable always online.",
+      "required": true,
+      "value": "false"
+    },
+    "ANTICALL": {
+      "description": "Enable or disable anti call.",
+      "required": true,
+      "value": "false"
+    },
+    "ANTICALL_MSG": {
+      "description": "Message sent when call is rejected.",
+      "required": true,
+      "value": "🚫 Calls are not allowed."
+    },
+    "ANTIFAKE": {
+      "description": "Enable anti fake numbers feature.",
+      "required": true,
+      "value": "false"
+    },
+    "ANTIFAKE_ACTION": {
+      "description": "Action for fake numbers: kick | warn | delete.",
+      "required": true,
+      "value": "kick"
+    },
+    "ANTIFAKE_NUMBERS": {
+      "description": "Comma separated fake number prefixes.",
+      "required": false,
+      "value": "91,222,92"
+    },
+    "ANTILINK": {
+      "description": "Enable or disable anti-link feature.",
+      "required": true,
+      "value": "false"
+    },
+    "ANTILINK_ACTION": {
+      "description": "Action when link detected: delete | warn | kick.",
+      "required": true,
+      "value": "delete"
+    },
+    "ANTIDELETE": {
+      "description": "Enable or disable anti-delete (resend deleted messages).",
+      "required": true,
+      "value": "false"
+    },
+    "AUTOREACT": {
+      "description": "Enable auto react feature.",
+      "required": true,
+      "value": "false"
+    },
+    "AUTO_LIKE_EMOJI": {
+      "description": "Emoji used for auto like status.",
+      "required": true,
+      "value": "😀"
+    },
+    "AUTO_LIKE_STATUS": {
+      "description": "Enable auto like status.",
+      "required": true,
+      "value": "false"
+    },
+    "AUTO_RECORDING": {
+      "description": "Enable auto recording presence.",
+      "required": true,
+      "value": "false"
+    },
+    "AUTO_TYPING": {
+      "description": "Enable auto typing presence.",
+      "required": true,
+      "value": "false"
+    },
+    "AUTO_VIEW_STATUS": {
+      "description": "Enable auto view status.",
+      "required": true,
+      "value": "false"
+    },
+    "HEROKU_APP_NAME": {
+      "description": "Heroku app name.",
+      "required": false,
+      "value": ""
+    },
+    "HEROKU_API_KEY": {
+      "description": "Heroku API key.",
+      "required": false,
+      "value": ""
+    }
+  },
+  "buildpacks": [
+    { "url": "https://github.com/heroku/heroku-buildpack-activestorage-preview" },
+    { "url": "heroku/nodejs" }
+  ],
+  "stack": "heroku-24"
+}
