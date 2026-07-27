@@ -1,0 +1,136 @@
+/**
+ * @project_name : Empire-Md
+ * @author : Empire Tech Labs
+ * @youtube : https://www.youtube.com/@only_one_empire
+ * @description : Empire-Md, A Multi-functional whatsapp user bot.
+ * @version 1.2.8
+ * Created By Empire Tech Labs.
+ * © 2026 Empire-Md.
+ */
+
+// Default anti-call rejection message
+let antiCallMessage = process.env.ANTICALL_MESSAGE || 
+  "```Hii this is Empire-Md a Personal Assistant!!\n\n\tSorry for now, we cannot receive calls, whether in a group or personal \n\n if you need help or request features please chat owner\n\n\nPowered by Empire-Md Chatbot```";
+
+let antiCallCountries = [];
+let antiCallUsers = {};
+let botSettings = false;
+
+const {
+  smd,
+  botpic,
+  send,
+  Config,
+  tlang,
+  sleep,
+  smdBuffer,
+  prefix,
+  bot_
+} = require("../lib");
+
+// ==================== ANTICALL COMMAND ====================
+smd({
+  pattern: "anticall",
+  desc: "Detects calls and decline them.",
+  category: "owner",
+  use: "<on | off>",
+  filename: __filename
+}, async (message, input) => {
+  // Get or create bot settings
+  let botConfig = (await bot_.findOne({ id: "bot_" + message.user })) || 
+                  (await bot_.new({ id: "bot_" + message.user }));
+  
+  let userInput = input ? input.toLowerCase().trim() : '';
+  
+  // Handle disabling anticall
+  if (userInput.startsWith("off") || userInput.startsWith("deact") || userInput.startsWith('disable')) {
+    if (botConfig.anticall === "false") {
+      return await message.send("*anticall Already Disabled In Current Chat!*");
+    }
+    await bot_.updateOne({ id: "bot_" + message.user }, { anticall: "false" });
+    return await message.send("*anticall Disable Succesfully!*");
+  } 
+  // Show current status if no input provided
+  else if (!input) {
+    return await message.send(
+      "*_anticall " + (botConfig.anticall === 'false' ? "Not set to any" : "set to \"" + botConfig.anticall + "\"") + 
+      " Country Code!_*\n *Provide Country code to Update Status*\n*Eg: _.anticall all | 212, 91_*"
+    );
+  }
+  
+  // Parse country codes or "all"
+  let countryCodes = userInput.includes("all") 
+    ? "all" 
+    : input 
+      ? input.split(',').map(code => parseInt(code)).filter(code => !isNaN(code)).join(',') 
+      : false;
+  
+  if (!input || !countryCodes) {
+    return await message.send(
+      "*_Please provide country code to block calls_*\n*_eg: " + prefix + "anticall all | 92_*"
+    );
+  } else if (countryCodes) {
+    await bot_.updateOne({ id: "bot_" + message.user }, { anticall: '' + countryCodes });
+    return await message.send("*anticall Succesfully set to \"" + countryCodes + "\"!*");
+  } else {
+    return await message.send(
+      "*_Please provide a Valid country code_*\n*example: " + prefix + "anticall all,212,91,231_*"
+    );
+  }
+});
+
+// ==================== INCOMING CALL HANDLER ====================
+smd({
+  call: "offer"
+}, async (call) => {
+  try {
+    // Load bot settings if not already loaded
+    if (!botSettings) {
+      botSettings = await bot_.findOne({ id: "bot_" + call.user });
+    }
+    
+    // Ignore if call is from bot owner, or anticall is disabled
+    if (call.fromMe || !botSettings || !botSettings.anticall || botSettings.anticall === "false") {
+      return;
+    }
+    
+    // Parse country codes from settings
+    if (!antiCallCountries || !antiCallCountries[0]) {
+      antiCallCountries = botSettings.anticall?.split(',') || [];
+      antiCallCountries = antiCallCountries.filter(code => code.trim() !== '');
+    }
+    
+    let blockAllCalls = ('' + botSettings.anticall).includes("all") ? "all" : '';
+    let shouldBlock = blockAllCalls == "all" 
+      ? true 
+      : antiCallCountries.some(code => call.from?.toString()?.startsWith(code));
+    
+    if (shouldBlock || call.isBot) {
+      try {
+        // Initialize warning counter for this caller
+        if (!antiCallUsers || !antiCallUsers[call.from]) {
+          antiCallUsers[call.from] = { warn: 0 };
+        }
+        
+        // Send warning message on first call
+        if (antiCallUsers[call.from].warn < 2) {
+          await call.send(antiCallMessage);
+        }
+        
+        antiCallUsers[call.from].warn++;
+        
+        // Notify owner about rejected call
+        await call.send(
+          '*_' + antiCallUsers[call.from].warn + " Call rejected From User @" + call.from.split('@')[0] + "..!!_*",
+          { mentions: [call.from] },
+          "empire",
+          '',
+          call.user
+        );
+        
+        // Decline the call
+        return await call.decline();
+      } catch {}
+    }
+  } catch {}
+});

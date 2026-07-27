@@ -1,0 +1,287 @@
+/**
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+//                                                                                                      //
+//                                ＷＨＡＴＳＡＰＰ ＢＯＴ－ＭＤ ＢＥＴＡ                                   //
+//                                                                                                      // 
+//                                         Ｖ：１．０．１                                                // 
+//                                                                                                      // 
+//            ███████╗███╗   ███╗██████╗ ██╗██████╗ ███████╗   ███╗   ███╗██████╗                       //
+//            ██╔════╝████╗ ████║██╔══██╗██║██╔══██╗██╔════╝   ████╗ ████║██╔══██╗                      //
+//            █████╗  ██╔████╔██║██████╔╝██║██████╔╝█████╗     ██╔████╔██║██║  ██║                      //
+//            ██╔══╝  ██║╚██╔╝██║██╔═══╝ ██║██╔══██╗██╔══╝     ██║╚██╔╝██║██║  ██║                      //
+//            ███████╗██║ ╚═╝ ██║██║     ██║██║  ██║███████╗   ██║ ╚═╝ ██║██████╔╝                      //
+//            ╚══════╝╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝     ╚═╝╚═════╝                       //
+//                                                                                                      //
+//                                                                                                      //
+//                                                                                                      //
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+
+CURRENTLY RUNNING ON BETA VERSION!!
+*
+   * @project_name : Empire-Md
+   * @author : Empire Tech Labs
+   * @youtube : https://www.youtube.com/@only_one_empire
+   * @description : Empire-Md ,A Multi-functional whatsapp user bot.
+   * @version 1.0.0
+*
+   * Licensed under the GPL-3.0 License;
+* 
+   * Created By Empire Tech Labs.
+   * © 2026 Empire-Md.
+**/
+
+/**
+ * @project_name : Empire-Md
+ * @author : Empire Tech Labs
+ * @youtube : https://www.youtube.com/@only_one_empire
+ * @description : Empire-Md, A Multi-functional whatsapp user bot.
+ * @version 1.2.8
+ * Created By Empire Tech Labs.
+ * © 2026 Empire-Md.
+ */
+
+const {
+  tlang,
+  getAdmin,
+  prefix,
+  Config,
+  sck,
+  sck1,
+  userdb,
+  bot_,
+  fetchJson,
+  getBuffer,
+  runtime,
+  smd,
+  listLanguages,
+  getLangName,
+  langText
+} = require("../lib");
+
+const {
+  Sticker,
+  createSticker,
+  StickerTypes
+} = require("wa-sticker-formatter");
+
+// Command: jid - Get JID of replied or current user
+smd({
+  pattern: 'jid',
+  desc: "get jid of all user in a group.",
+  category: "user",
+  filename: __filename,
+  use: '<@user>'
+}, async ({ jid, reply, quoted }) => {
+  if (quoted) {
+    return reply(quoted.sender);
+  } else {
+    return reply(jid);
+  }
+});
+
+// Command: getpp - Get profile picture of a user
+smd({
+  pattern: "getpp",
+  desc: "Get Profile Pic For Given User",
+  category: "user",
+  filename: __filename
+}, async (message) => {
+  try {
+    // Determine target user: replied user, mentioned user, or message sender
+    let targetUser = message.reply_message 
+      ? message.reply_message.sender 
+      : message.mentionedJid[0] 
+        ? message.mentionedJid[0] 
+        : message.from;
+    
+    let profilePicUrl;
+    try {
+      profilePicUrl = await message.bot.profilePictureUrl(targetUser, "image");
+    } catch (error) {
+      return message.reply("```Profile Pic Not Fetched```");
+    }
+    
+    return await message.bot.sendMessage(message.chat, {
+      image: { url: profilePicUrl },
+      caption: "  *---Profile Pic Is Here---*\n" + Config.caption
+    }, {
+      quoted: message
+    });
+  } catch (error) {
+    await message.error(error + "\n\ncommand : getpp", error);
+  }
+});
+
+// Command: whois - Get information about a user or group
+smd({
+  pattern: "whois",
+  desc: "Makes photo of replied sticker.",
+  category: 'user',
+  use: "<reply to any person>",
+  filename: __filename
+}, async (message) => {
+  try {
+    let targetUser = message.reply_message 
+      ? message.reply_message.sender 
+      : message.mentionedJid[0] 
+        ? message.mentionedJid[0] 
+        : false;
+    
+    // If no user is targeted and it's a group, show group info
+    if (!targetUser && message.isGroup) {
+      const groupImage = (await message.bot.profilePictureUrl(message.chat, "image")
+        .catch(error => 'https://telegra.ph/file/29a8c892a1d18fdb26028.jpg')) || THUMB_IMAGE;
+      
+      const metadata = message.metadata;
+      
+      // Format admins list
+      const adminsList = message.admins.map((admin, index) => 
+        "  " + (index + 1) + ". wa.me/" + admin.id.split('@')[0]
+      ).join("\n");
+      
+      const groupOwner = metadata.owner || message.admins.find(admin => admin.admin === "superadmin")?.id || false;
+      
+      let groupInfo = "\n      *「 GROUP INFORMATION 」*\n" +
+        "*▢ NAME :*\n   • " + metadata.subject + "\n" +
+        "*▢ Members :*\n   • " + metadata.participants.length + "\n" +
+        "*▢ Group Owner :*\n   • " + (groupOwner ? "wa.me/" + groupOwner.split('@')[0] : 'notFound') + "\n" +
+        "*▢ Admins :*\n" + adminsList + "\n" +
+        "*▢ Description :*\n   • " + (metadata.desc?.toString() || "_not set_") + "\n   ";
+      
+      return await message.reply(groupImage, {
+        caption: groupInfo
+      }, "image");
+    } else {
+      // Show user info
+      if (!targetUser) {
+        return message.reply(langText("msgs", "reply_person", {}, message.userLang || global.currentUserLang));
+      }
+      
+      // Fetch user status/bio
+      try {
+        var userStatus = await message.bot.fetchStatus(targetUser);
+        var statusText = userStatus.status;
+        var statusSetAt = userStatus.setAt.toString();
+        var dateParts = statusSetAt.split(" ");
+        if (dateParts.length > 3) {
+          statusSetAt = dateParts.slice(0, 5).join(" ");
+        }
+      } catch {
+        var statusText = "undefined";
+        var statusSetAt = '';
+      }
+      
+      var phoneNumber = targetUser.split('@')[0];
+      
+      // Get profile picture
+      let profilePicUrl;
+      try {
+        profilePicUrl = await message.bot.profilePictureUrl(targetUser, "image");
+      } catch (error) {
+        profilePicUrl = 'https://telegra.ph/file/29a8c892a1d18fdb26028.jpg';
+      }
+      
+      var userName = await message.bot.getName(targetUser);
+      
+      return await message.bot.sendMessage(message.jid, {
+        image: { url: profilePicUrl },
+        caption: "\n╔════◇\n" +
+          "║ *『Person's Information』*\n" +
+          "║ \n" +
+          "║ *🍫Name :* " + userName + "\n" +
+          "║ *👤Num :* " + phoneNumber + "\n" +
+          "║ *🎐Bio :* " + statusText + "\n" +
+          "║ *🌟SetAt :* " + statusSetAt + "\n" +
+          "║    *Keep Calm Dude🥳*    ◇\n" +
+          "╚════════════════╝\n"
+      }, {
+        quoted: message
+      });
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : whois", error);
+  }
+});
+
+// Command: wa - Get WhatsApp link for replied/mentioned user
+smd({
+  pattern: 'wa',
+  desc: "Makes wa me of quoted or mentioned user.",
+  category: "user",
+  filename: __filename
+}, async (message) => {
+  try {
+    let targetUser = message.reply_message 
+      ? message.reply_message.sender 
+      : message.mentionedJid[0] 
+        ? message.mentionedJid[0] 
+        : false;
+    
+    await message.reply(!targetUser 
+      ? "*Please Reply Or Mention A User*" 
+      : "https://wa.me/" + targetUser.split('@')[0]
+    );
+  } catch (error) {
+    await message.error(error + "\n\ncommand : wa", error, false);
+  }
+});
+
+// Command: mee - Get WhatsApp link for yourself
+smd({
+  pattern: 'mee',
+  desc: "Makes wa me for user.",
+  category: "user",
+  filename: __filename
+}, async (message) => {
+  try {
+    return await message.reply("https://wa.me/" + message.sender.split('@')[0]);
+  } catch {}
+});
+
+// Command: language - Set personal bot language
+smd({
+  pattern: "language",
+  alias: ["lang", "setlang"],
+  desc: "Set your bot response language",
+  category: "user",
+  filename: __filename,
+  use: "<code|list>"
+}, async (message, input) => {
+  try {
+    const langs = listLanguages();
+    const action = (input || "").trim().toLowerCase();
+
+    if (!action) {
+      const code = message.userLang || global.language || "en";
+      return await message.reply(
+        langText("language", "current", { lang: code, name: getLangName(code) }, code)
+      );
+    }
+
+    if (action === "list") {
+      const list = langs.map((code) => "• `" + code + "` — " + getLangName(code)).join("\n");
+      return await message.reply(langText("language", "list", { list }, message.userLang));
+    }
+
+    if (!langs.includes(action)) {
+      return await message.reply(
+        langText("language", "invalid", { prefix }, message.userLang)
+      );
+    }
+
+    await userdb.findOne({ id: message.sender }) || await userdb.new({ id: message.sender, name: message.senderName || "Unknown" });
+    await userdb.updateOne({ id: message.sender }, { language: action });
+    global.currentUserLang = action;
+    message.userLang = action;
+    if (global.userCache?.[message.sender]) {
+      global.userCache[message.sender].language = action;
+    }
+
+    return await message.reply(
+      langText("language", "changed", { name: getLangName(action), code: action }, action) +
+      "\n\n_" + tlang("success", action) + "_"
+    );
+  } catch (error) {
+    await message.error(error + "\n\ncommand: language", error);
+  }
+});

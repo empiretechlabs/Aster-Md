@@ -1,0 +1,504 @@
+/**
+ * @project_name : Empire-Md
+ * @author : Empire Tech Labs
+ * @youtube : https://www.youtube.com/@only_one_empire
+ * @description : Empire-Md, A Multi-functional whatsapp user bot.
+ * @version 1.2.8
+ * Created By Empire Tech Labs.
+ * © 2026 Empire-Md.
+ */
+
+let {
+  smd,
+  prefix,
+  Config,
+  langText,
+  tr,
+  tlang
+} = require("../lib");
+
+const UL = (message) => message.userLang || global.currentUserLang;
+
+// ============================ CHATS SETTINGS ============================ 
+
+function chatId(message) {
+  return message.chat || message.jid || message.from;
+}
+
+function lastMessages(message) {
+  const jid = chatId(message);
+  const key = {
+    remoteJid: jid,
+    id: message.id || message.key?.id,
+    fromMe: !!message.fromMe
+  };
+  const participant = message.key?.participant || message.sender || message.participant;
+  if (message.isGroup && participant && !key.fromMe) {
+    key.participant = participant;
+  }
+
+  let messageTimestamp = message.messageTimestamp ?? message.timestamp ?? Math.floor(Date.now() / 1000);
+  if (typeof messageTimestamp === "object") {
+    messageTimestamp = messageTimestamp.low ?? messageTimestamp.high ?? Math.floor(Date.now() / 1000);
+  }
+
+  return [{
+    key,
+    message: message.message || { conversation: message.body || "" },
+    messageTimestamp: Number(messageTimestamp)
+  }];
+}
+
+function parseMuteTime(input = '') {
+  const raw = String(input || '').trim().toLowerCase();
+  if (!raw) return 8 * 60 * 60;
+  if (["forever", "always", "permanent"].includes(raw)) return 365 * 24 * 60 * 60;
+
+  const match = raw.match(/(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)?/);
+  if (!match) return 8 * 60 * 60;
+
+  const value = parseInt(match[1]);
+  const unit = match[2] || "h";
+  if (/^s/.test(unit)) return value;
+  if (/^m/.test(unit)) return value * 60;
+  if (/^d/.test(unit)) return value * 24 * 60 * 60;
+  if (/^w/.test(unit)) return value * 7 * 24 * 60 * 60;
+  return value * 60 * 60;
+}
+
+async function modifyChat(message, patch) {
+  try {
+    return await message.bot.chatModify(patch, chatId(message));
+  } catch (error) {
+    const errorText = String(error?.message || error);
+    if (/App state key|myAppStateKey/i.test(errorText)) {
+      try { message.bot.ev.flush(); } catch {}
+      await message.send(langText("chats", "syncing", {}, UL(message)));
+      return false;
+    }
+    throw error;
+  }
+}
+
+function parsePinDuration(input = '') {
+  const raw = String(input || '').trim().toLowerCase();
+  if (!raw) return 86400;
+  if (['1d', '1', 'day'].includes(raw)) return 86400;
+  if (['7d', '7', 'week'].includes(raw)) return 604800;
+  if (['30d', '30', 'month'].includes(raw)) return 2592000;
+  const seconds = parseInt(raw, 10);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : 86400;
+}
+
+function quotedMessageKey(message) {
+  const key = { ...message.quoted.key };
+  if (!message.isGroup) delete key.participant;
+  return key;
+}
+
+// Command: clear - Clear chat messages (Baileys chatModify)
+smd({
+  pattern: 'clear',
+  fromMe: true,
+  desc: 'clear chat messages',
+  type: 'chats'
+}, async (message, match) => {
+  try {
+    await message.send(langText("chats", "clearing", {}, UL(message)));
+    if (await modifyChat(message, {
+      clear: true,
+      lastMessages: lastMessages(message)
+    }) === false) return;
+    await message.send("_Chat cleared._");
+  } catch (error) {
+    message.error(`${error}\n\nCommand : clear`, error, false);
+  }
+});
+
+// Command: archive - Archive WhatsApp chat
+smd({
+  pattern: 'archive',
+  fromMe: true,
+  desc: 'archive whatsapp chat',
+  type: 'chats'
+}, async (message, match) => {
+  try {
+    await message.send(langText("chats", "archiving", {}, UL(message)));
+    if (await modifyChat(message, {
+      archive: true,
+      lastMessages: lastMessages(message)
+    }) === false) return;
+  } catch (error) {
+    message.error(`${error}\n\nCommand : archive`, error, false);
+  }
+});
+
+// Command: unarchive - Unarchive WhatsApp chat
+smd({
+  pattern: 'unarchive',
+  fromMe: true,
+  desc: 'unarchive whatsapp chat',
+  type: 'chats'
+}, async (message, match) => {
+  try {
+    if (await modifyChat(message, {
+      archive: false,
+      lastMessages: lastMessages(message)
+    }) === false) return;
+    await message.send(langText("chats", "unarchived", {}, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : unarchive`, error, false);
+  }
+});
+
+// Command: chatpin - Pin a chat
+smd({
+  pattern: 'chatpin',
+  alias: ["pinchat"],
+  fromMe: true,
+  desc: 'pin a chat',
+  type: 'chats'
+}, async (message, match) => {
+  try {
+    if (await modifyChat(message, {
+      pin: true
+    }) === false) return;
+    await message.send(langText("chats", "pinned", {}, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : chatpin`, error, false);
+  }
+});
+
+// Command: chatunpin - Unpin a chat
+smd({
+  pattern: 'chatunpin',
+  alias: ["unpinchat"],
+  fromMe: true,
+  desc: 'unpin a chat',
+  type: 'chats'
+}, async (message, match) => {
+  try {
+    if (await modifyChat(message, {
+      pin: false
+    }) === false) return;
+    await message.send(langText("chats", "unpinned", {}, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : chatunpin`, error, false);
+  }
+});
+
+// Command: pin - Pin a message (Baileys)
+smd({
+  pattern: 'pin',
+  alias: ["pinmsg"],
+  fromMe: true,
+  desc: 'pin a quoted message (reply). optional: 1d, 7d, 30d',
+  use: '<reply> [1d|7d|30d]',
+  type: 'chats'
+}, async (message, input) => {
+  try {
+    if (!message.quoted?.key?.id) {
+      return message.reply("*Reply to the message you want to pin.*\nExample: `.pin 7d`");
+    }
+    if (message.isGroup && (!message.isAdmin || !message.isBotAdmin)) {
+      return message.reply(tlang().admin);
+    }
+    const duration = parsePinDuration(input);
+    await message.bot.sendMessage(message.chat, {
+      pin: quotedMessageKey(message),
+      time: duration,
+      type: 1
+    });
+    await message.send(langText("chats", "pinned", {}, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : pin`, error, false);
+  }
+});
+
+// Command: unpin - Unpin a message (Baileys)
+smd({
+  pattern: 'unpin',
+  alias: ["unpinmsg"],
+  fromMe: true,
+  desc: 'unpin a quoted message (reply)',
+  use: '<reply>',
+  type: 'chats'
+}, async (message) => {
+  try {
+    if (!message.quoted?.key?.id) {
+      return message.reply("*Reply to the message you want to unpin.*");
+    }
+    if (message.isGroup && (!message.isAdmin || !message.isBotAdmin)) {
+      return message.reply(tlang().admin);
+    }
+    await message.bot.sendMessage(message.chat, {
+      pin: quotedMessageKey(message),
+      type: 2
+    });
+    await message.send(langText("chats", "unpinned", {}, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : unpin`, error, false);
+  }
+});
+
+// Command: markread - Mark chat as read
+smd({
+  pattern: 'markread',
+  fromMe: true,
+  desc: 'mark as readed',
+  type: 'chats'
+}, async (message, match) => {
+  try {
+    if (await modifyChat(message, {
+      markRead: true,
+      lastMessages: lastMessages(message)
+    }) === false) return;
+    await message.send(langText("chats", "marked_read", {}, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : markread`, error, false);
+  }
+});
+
+// Command: markunread - Mark chat as unread
+smd({
+  pattern: 'markunread',
+  fromMe: true,
+  desc: 'mark as UnRead',
+  type: 'chats'
+}, async (message, match) => {
+  try {
+    await message.send(langText("chats", "marking_unread", {}, UL(message)));
+    if (await modifyChat(message, {
+      markRead: false,
+      lastMessages: lastMessages(message)
+    }) === false) return;
+  } catch (error) {
+    message.error(`${error}\n\nCommand : markunread`, error, false);
+  }
+});
+
+// Command: mutechat - Mute a chat
+smd({
+  pattern: 'mutechat',
+  alias: ["chatmute", "mutecghat"],
+  fromMe: true,
+  desc: 'mute a chat',
+  type: 'chats'
+}, async (message, match) => {
+  try {
+    const seconds = parseMuteTime(match);
+    if (await modifyChat(message, {
+      mute: Math.floor(Date.now() / 1000) + seconds
+    }) === false) return;
+    await message.send(langText("chats", "muted", {}, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : mutechat`, error, false);
+  }
+});
+
+// Command: unmutechat - Unmute a chat
+smd({
+  pattern: 'unmutechat',
+  alias: ["chatunmute", "unmutecghat"],
+  fromMe: true,
+  desc: 'unmute a chat',
+  type: 'chats'
+}, async (message, match) => {
+  try {
+    if (await modifyChat(message, {
+      mute: null
+    }) === false) return;
+    await message.send(langText("chats", "unmuted", {}, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : unmutechat`, error, false);
+  }
+});
+
+// Command: profilename - Change your WhatsApp profile name
+smd({
+  pattern: 'profilename',
+  fromMe: true,
+  desc: 'To change your profile name',
+  type: 'whatsapp'
+}, async (message, match) => {
+  try {
+    match = match || message.reply_message.text;
+    if (!match) {
+      return await message.send(langText("chats", "need_name", {}, UL(message)));
+    }
+    await message.bot.updateProfileName(match);
+    await message.send(langText("chats", "profile_updated", {}, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : profilename`, error, false);
+  }
+});
+
+// ============================ PRIVACY SETTINGS ============================    
+
+// Command: getprivacy - Get current privacy settings
+smd({
+  pattern: 'getprivacy',
+  fromMe: true,
+  desc: 'get your privacy settings',
+  type: 'privacy'
+}, async (message, match) => {
+  const {
+    readreceipts,
+    profile,
+    status,
+    online,
+    last,
+    groupadd,
+    calladd
+  } = await message.bot.fetchPrivacySettings(true);
+  
+  let profilePicture = await message.getpp(message.user);
+  
+  await message.send(profilePicture, {
+    caption: `*♺ whatsapp privacy settings*
+
+*ᝄ name :* ${(message.fromMe && message.pushName ? message.pushName : message.bot.user.name).split("\n").join("  ")}
+*ᝄ number :* ${message.user.split("@")[0]}
+
+*ᝄ online :* ${online}
+*ᝄ profile :* ${profile}
+*ᝄ last seen :* ${last}
+*ᝄ whts status :* ${status}
+*ᝄ read receipt :* ${readreceipts}
+
+*ᝄ who can add in group :* ${groupadd}
+*ᝄ who can call :* ${calladd}`
+  }, 'img');
+});
+
+// Command: lastseen - Change last seen privacy setting
+smd({
+  pattern: 'lastseen',
+  fromMe: true,
+  desc: 'to change lastseen privacy',
+  type: 'privacy'
+}, async (message, match, { smd: commandName }) => {
+  try {
+    if (!match) {
+      return await message.send(langText("chats", "privacy_example", { cmd: "lastseen", setting: "last seen" }, UL(message)));
+    }
+    const available_privacy = ['all', 'contacts', 'contact_blacklist', 'none'];
+    if (!available_privacy.includes(match)) {
+      return await message.send(langText("chats", "privacy_invalid", { options: available_privacy.join(' / ') }, UL(message)));
+    }
+    await message.bot.updateLastSeenPrivacy(match);
+    await message.send(langText("chats", "privacy_updated", { setting: "last seen", value: match }, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : lastseen`, error, false);
+  }
+});
+
+// Command: online - Change online privacy setting
+smd({
+  pattern: 'online',
+  fromMe: true,
+  desc: 'to change online privacy',
+  type: 'privacy'
+}, async (message, match) => {
+  try {
+    if (!match) {
+      return await message.send(langText("chats", "privacy_example", { cmd: "online", setting: "online" }, UL(message)));
+    }
+    const available_privacy = ['all', 'match_last_seen'];
+    if (!available_privacy.includes(match)) {
+      return await message.send(langText("chats", "privacy_invalid", { options: available_privacy.join('/') }, UL(message)));
+    }
+    await message.bot.updateOnlinePrivacy(match);
+    await message.send(langText("chats", "privacy_updated", { setting: "online", value: match }, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : online`, error, false);
+  }
+});
+
+// Command: mypp - Change profile picture privacy setting
+smd({
+  pattern: 'mypp',
+  fromMe: true,
+  desc: 'privacy setting profile picture',
+  type: 'privacy'
+}, async (message, match) => {
+  try {
+    if (!match) {
+      return await message.send(langText("chats", "privacy_example", { cmd: "mypp", setting: "profile picture" }, UL(message)));
+    }
+    const available_privacy = ['all', 'contacts', 'contact_blacklist', 'none'];
+    if (!available_privacy.includes(match)) {
+      return await message.send(langText("chats", "privacy_invalid", { options: available_privacy.join('/') }, UL(message)));
+    }
+    await message.bot.updateProfilePicturePrivacy(match);
+    await message.send(langText("chats", "privacy_updated", { setting: "profile picture", value: match }, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : mypp`, error, false);
+  }
+});
+
+// Command: mystatus - Change status privacy setting
+smd({
+  pattern: 'mystatus',
+  fromMe: true,
+  desc: 'privacy for my status',
+  type: 'privacy'
+}, async (message, match) => {
+  try {
+    if (!match) {
+      return await message.send(langText("chats", "privacy_example", { cmd: "mystatus", setting: "status" }, UL(message)));
+    }
+    const available_privacy = ['all', 'contacts', 'contact_blacklist', 'none'];
+    if (!available_privacy.includes(match)) {
+      return await message.send(langText("chats", "privacy_invalid", { options: available_privacy.join('/') }, UL(message)));
+    }
+    await message.bot.updateStatusPrivacy(match);
+    await message.send(langText("chats", "privacy_updated", { setting: "status", value: match }, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : mystatus`, error, false);
+  }
+});
+
+// Command: read - Change read receipts privacy setting
+smd({
+  pattern: 'read',
+  fromMe: true,
+  desc: 'privacy for read message',
+  type: 'privacy'
+}, async (message, match, cmd) => {
+  try {
+    if (!match) {
+      return await message.send(langText("chats", "privacy_example", { cmd: "read", setting: "read and receipts message" }, UL(message)));
+    }
+    const available_privacy = ['all', 'none'];
+    if (!available_privacy.includes(match)) {
+      return await message.send(langText("chats", "privacy_invalid", { options: available_privacy.join('/') }, UL(message)));
+    }
+    await message.bot.updateReadReceiptsPrivacy(match);
+    await message.send(langText("chats", "privacy_updated", { setting: "read receipts", value: match }, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : read`, error, false);
+  }
+});
+
+// Command: groupadd - Change group add privacy setting
+smd({
+  pattern: 'groupadd',
+  fromMe: true,
+  desc: 'privacy for group add',
+  type: 'privacy'
+}, async (message, match, cmd) => {
+  try {
+    if (!match) {
+      return await message.send(langText("chats", "privacy_example", { cmd: "groupadd", setting: "group add" }, UL(message)));
+    }
+    const available_privacy = ['all', 'contacts', 'contact_blacklist', 'none'];
+    if (!available_privacy.includes(match)) {
+      return await message.send(langText("chats", "privacy_invalid", { options: available_privacy.join('/') }, UL(message)));
+    }
+    await message.bot.updateGroupsAddPrivacy(match);
+    await message.send(langText("chats", "privacy_updated", { setting: "group add", value: match }, UL(message)));
+  } catch (error) {
+    message.error(`${error}\n\nCommand : groupadd`, error, false);
+  }
+});

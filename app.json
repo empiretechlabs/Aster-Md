@@ -1,8 +1,8 @@
 {
-  "name": "Empire_Md",
+  "name": "Aster-Md",
   "description": "A Whatsapp md bot built in NodeJs to make experience better",
   "logo": "https://files.catbox.moe/lps6ow.jpg",
-  "keywords": ["nodejs", "Empire_Md", "whatsapp bot", "Empire Tech", "baileys"],
+  "keywords": ["nodejs", "Aster-Md", "whatsapp bot", "Empire Tech", "baileys"],
   "success_url": "/",
   "env": {
     "OWNER_NUMBER": {

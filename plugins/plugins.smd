@@ -1,0 +1,207 @@
+/**
+ * @project_name : Empire-Md
+ * @author : Empire Tech Labs
+ * @youtube : https://www.youtube.com/@only_one_empire
+ * @description : Empire-Md, A Multi-functional whatsapp user bot.
+ * @version 1.2.8
+ * Created By Empire Tech Labs.
+ * © 2026 Empire-Md.
+ */
+
+const {
+  plugins,
+  isUrl,
+  smd,
+  tlang,
+  getString,
+  Config,
+  smdJson,
+  smdBuffer,
+  checkUpdate,
+  applyUpdate,
+  restartBotProcess,
+  prefix,
+  langText,
+  tr
+} = require("../lib");
+
+// ==================== UPDATE COMMAND ====================
+smd({
+  cmdname: "update",
+  alias: ["upgrade", "gitpull"],
+  info: "Check or apply bot updates (git pull / GitHub archive fallback)",
+  type: "tools",
+  fromMe: true,
+  filename: __filename,
+  use: "[now|force]"
+}, async (message, arg) => {
+  try {
+    const updater = getString('updater') || {};
+    const action = (arg || '').trim().toLowerCase();
+
+    if (!action || action === 'check') {
+      const info = await checkUpdate();
+      if (info.behind === 0) {
+        return await message.reply(
+          (updater.UPDATE || '*Your bot is already up-to-date.*') +
+          '\n*Method:* `' + info.method + '`\n*Branch:* `' + info.branch + '`'
+        );
+      }
+      return await message.reply(
+        (updater.NEW_UPDATE || '*A new update is available!*\n\n*Changes:*\n') +
+        (info.changelog || '_See GitHub for details._') +
+        '\n\n*Use:* `' + prefix + 'update now` to apply.\n' +
+        '*Force:* `' + prefix + 'update force`'
+      );
+    }
+
+    if (action === 'now' || action === 'force') {
+      await message.reply('⏳ *Updating Empire-Md...*\n_Please wait, do not run commands._');
+      const result = await applyUpdate(action === 'force');
+
+      if (result.upToDate) {
+        return await message.reply(updater.UPDATE || '*Your bot is already up-to-date.*');
+      }
+
+      await message.reply(
+        (updater.UPDATED_LOCAL || '*Successfully updated!*') +
+        '\n*Method:* `' + result.method + '`\n*Branch:* `' + (result.branch || Config.BRANCH || 'main') + '`' +
+        (result.changelog ? '\n\n' + result.changelog : '') +
+        '\n\n_Restarting bot..._'
+      );
+      return restartBotProcess();
+    }
+
+    return await message.reply(
+      '*Update commands:*\n' +
+      '• `' + prefix + 'update` — check for updates\n' +
+      '• `' + prefix + 'update now` — pull & restart\n' +
+      '• `' + prefix + 'update force` — force re-download'
+    );
+  } catch (error) {
+    await message.error(error + '\n\ncommand: update', error, '*Update failed!*');
+  }
+});
+
+// ==================== RESTART COMMAND ====================
+smd({
+  cmdname: "restart",
+  info: "To restart bot",
+  type: "tools",
+  fromMe: true,
+  filename: __filename
+}, async (message) => {
+  message.reply("Restarting");
+  restartBotProcess();
+});
+
+// ==================== LISTPLUGIN COMMAND ====================
+smd({
+  cmdname: "listplugin",
+  type: "owner",
+  info: "Shows list of all external modules",
+  filename: __filename,
+  use: "<name>"
+}, async (message) => {
+  try {
+    let pluginData = await smdJson('https://raw.githubusercontent.com/efeurhobobullish/Empire-Md-Plugins/refs/heads/main/plugins/listPlugin.json');
+
+    // Display main plugins
+    if (pluginData && pluginData.result && pluginData.result[0]) {
+      let pluginList = '';
+      for (let i = 0; i < pluginData.result.length; i++) {
+        pluginList += pluginData.result[i].name + ": _" + pluginData.result[i].url + "_\n\n";
+      }
+
+      let thumbnailBuffer = await smdBuffer("https://telegra.ph/file/2fa8e0e24eea3f363d5f6.jpg");
+      var contextInfo = {
+        ...(await message.bot.contextInfo("ᴇᴍᴘɪʀᴇ-ᴍᴅ", "Pʟᴜɢɪɴꜱ", thumbnailBuffer ? thumbnailBuffer : log0, 1, gurl, '1'))
+      };
+
+      await message.reply(pluginList, { contextInfo: contextInfo });
+    }
+
+    // Display external plugins
+    if (pluginData && pluginData.external && pluginData.external[0]) {
+      let externalList = '';
+      let externalThumbnail = await smdBuffer("https://telegra.ph/file/369a41986ee5c49db251d.jpg");
+      var contextInfo = {
+        ...(await message.bot.contextInfo("ᴇᴍᴘɪʀᴇ-ᴍᴅ", "ᴇxᴛᴇʀɴᴀʟ ᴍᴏᴅᴜʟᴇ", externalThumbnail ? externalThumbnail : log0, 1, gurl, '1'))
+      };
+
+      for (let i = 0; i < pluginData.external.length; i++) {
+        externalList += pluginData.external[i].name + ": _" + pluginData.external[i].url + "_\n\n";
+      }
+
+      await message.reply(externalList, { contextInfo: contextInfo });
+    }
+  } catch (error) {
+    message.error(error + " \n\ncmdName listplugin", error);
+  }
+});
+
+// ==================== PLUGINS COMMAND (List Installed) ====================
+smd({
+  cmdname: "plugins",
+  alias: ["plugin"],
+  type: 'owner',
+  info: "Shows list of all externally installed modules",
+  fromMe: true,
+  filename: __filename,
+  use: "<name>"
+}, async (message, pluginName) => {
+  try {
+    let pluginResult = await plugins(message, "plugins", pluginName);
+
+    return await message.send(
+      !pluginResult 
+        ? "*_There's no plugin install in " + Config.botname + '_*' 
+        : !pluginName 
+          ? "*All Installed Modules are:-*\n\n" + pluginResult 
+          : pluginResult
+    );
+  } catch (error) {
+    message.error(error + " \n\ncmdName plugins\n");
+  }
+});
+
+// ==================== REMOVE COMMAND (Uninstall Plugin) ====================
+smd({
+  pattern: "remove",
+  alias: ["uninstall"],
+  type: "owner",
+  info: "removes external modules.",
+  fromMe: true,
+  filename: __filename,
+  use: "<plugin name>"
+}, async (message, pluginName) => {
+  if (!pluginName) {
+    return await message.reply(langText("plugins", "provide_name", {}, message.userLang || global.currentUserLang));
+  }
+
+  if (pluginName === "alls") {
+    return await message.reply(await plugins("remove", 'all', __dirname));
+  }
+
+  try {
+    await message.send(await plugins(message, 'remove', pluginName, __dirname), {}, '', message);
+  } catch {}
+});
+
+// ==================== INSTALL COMMAND ====================
+smd({
+  cmdname: "install",
+  type: "owner",
+  info: "Installs external modules..",
+  fromMe: true,
+  filename: __filename,
+  use: "<gist url>"
+}, async (message, url) => {
+  let pluginUrl = url ? url : message.quoted ? message.quoted.text : '';
+
+  if (!pluginUrl.toLowerCase().includes("https")) {
+    return await message.send("*_Uhh Please, Provide Me Plugin Url_*");
+  }
+
+  await message.reply(await plugins(message, "install", pluginUrl, __dirname));
+});

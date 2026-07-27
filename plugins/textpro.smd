@@ -1,0 +1,235 @@
+/**
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+//                                                                                                      //
+//                                ＷＨＡＴＳＡＰＰ ＢＯＴ－ＭＤ ＢＥＴＡ                                   //
+//                                                                                                      // 
+//                                         Ｖ：1．2．8                                                   // 
+//                                                                                                      // 
+//            ███████╗██╗   ██╗██╗  ██╗ █████╗ ██╗██╗         ███╗   ███╗██████╗                        //
+//            ██╔════╝██║   ██║██║  ██║██╔══██╗██║██║         ████╗ ████║██╔══██╗                       //
+//            ███████╗██║   ██║███████║███████║██║██║         ██╔████╔██║██║  ██║                       //
+//            ╚════██║██║   ██║██╔══██║██╔══██║██║██║         ██║╚██╔╝██║██║  ██║                       //
+//            ███████║╚██████╔╝██║  ██║██║  ██║██║███████╗    ██║ ╚═╝ ██║██████╔╝                       //
+//            ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚══════╝    ╚═╝     ╚═╝╚═════╝                        //
+//                                                                                                      //
+//                                                                                                      //
+//                                                                                                      //
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+*
+   * @project_name : Suhail-Md
+   * @author : Suhail Tech Info
+   * @youtube : https://www.youtube.com/@SuhailTechInfo
+   * @description : Suhail-Md ,A Multi-functional whatsapp user bot.
+   * @version 1.2.8
+*
+* 
+   * Created By Suhail Tech Info.
+   * © 2024 Suhail-Md.
+*/
+
+let {
+  smd,
+  lang,
+  textToLogoGenerator,
+  prefix,
+  langText,
+  tr
+} = require("../lib");
+smd({
+  'cmdname': 'slice',
+  'type': "logo",
+  'info': "Some text to image feature with various styles.",
+  'filename': __filename
+}, async (message, text, {
+  cmdName
+}) => {
+  try {
+    if (!text) {
+      return message.reply(langText("textpro", "example_text", { prefix, cmd: prefix + cmdName }, message.userLang || global.currentUserLang));
+    }
+    return await textToLogoGenerator(message, "create-light-glow-sliced-text-effect-online-1068", text);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: " + cmdName, error);
+  }
+});
+
+smd({
+  'cmdname': "glow",
+  'type': "logo",
+  'info': "Some text to image feature with various styles.",
+  'filename': __filename
+}, async (message, text, {
+  cmdName
+}) => {
+  try {
+    if (!text) {
+      return message.reply(langText("textpro", "example_text", { prefix, cmd: prefix + cmdName }, message.userLang || global.currentUserLang));
+    }
+    return await textToLogoGenerator(message, 'free-advanced-glow-text-effect-873', text);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: " + cmdName, error);
+  }
+});
+
+smd({
+  'cmdname': "gitch1",
+  'type': "logo",
+  'info': "Some text to image feature with various styles.",
+  'filename': __filename
+}, async (message, text, {
+  cmdName
+}) => {
+  try {
+    if (!text) {
+      return message.reply(langText("textpro", "example_text", { prefix, cmd: prefix + cmdName }, message.userLang || global.currentUserLang));
+    }
+    return await textToLogoGenerator(message, "create-impressive-glitch-text-effects-online-1027", text);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: " + cmdName, error);
+  }
+});
+
+smd({
+  'cmdname': "steal",
+  'type': "logo",
+  'info': "Some text to image feature with various styles.",
+  'filename': __filename
+}, async (message, text, {
+  cmdName
+}) => {
+  try {
+    let text1 = text ? text.split(';')[0] : '';
+    let text2 = text ? text.split(';')[1] : '';
+    if (!text2 || !text1) {
+      return await message.reply(langText("textpro", "example_dual", { prefix, cmd: prefix + cmdName }, message.userLang || global.currentUserLang));
+    }
+    return await textToLogoGenerator(message, '3d-steel-text-effect-877', text1, text2);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: " + cmdName, error);
+  }
+});
+
+smd({
+  'cmdname': "avenger",
+  'type': "logo",
+  'info': "Some text to image feature with various styles.",
+  'filename': __filename
+}, async (message, text, {
+  cmdName
+}) => {
+  try {
+    let text1 = text ? text.split(';')[0] : '';
+    let text2 = text ? text.split(';')[1] : '';
+    if (!text2 || !text1) {
+      return await message.reply(langText("textpro", "example_dual", { prefix, cmd: prefix + cmdName }, message.userLang || global.currentUserLang));
+    }
+    return await textToLogoGenerator(message, 'create-3d-avengers-logo-online-974', text1, text2);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: " + cmdName, error);
+  }
+});
+
+smd({
+  'cmdname': 'marvel',
+  'type': 'logo',
+  'info': "Some text to image feature with various styles.",
+  'filename': __filename
+}, async (message, text, {
+  cmdName
+}) => {
+  try {
+    let text1 = text ? text.split(';')[0] : '';
+    let text2 = text ? text.split(';')[1] : '';
+    if (!text2 || !text1) {
+      return await message.reply(langText("textpro", "example_dual", { prefix, cmd: prefix + cmdName }, message.userLang || global.currentUserLang));
+    }
+    return await textToLogoGenerator(message, 'create-logo-style-marvel-studios-ver-metal-972', text1, text2);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: " + cmdName, error);
+  }
+});
+
+smd({
+  cmdname: "phub",
+  type: "logo",
+  info: "Some text to image feature with various styles.",
+  filename: __filename
+}, async (message, text, { cmdName }) => {
+  try {
+    const text1 = text ? text.split(";")[0] : "";
+    const text2 = text ? text.split(";")[1] : "";
+
+    if (!text1 || !text2) {
+      return await message.reply(
+        `*_Example : ${prefix + cmdName} text1;text2_*`
+      );
+    }
+
+    return await textToLogoGenerator(
+      message,
+      "pornhub-style-logo-online-generator-free-977",
+      text1,
+      text2
+    );
+
+  } catch (error) {
+    return await message.error(
+      `${error}\n\ncmdName: ${cmdName}`,
+      error
+    );
+  }
+});
+
+smd({
+  'cmdname': "glitch",
+  'type': "logo",
+  'info': "Some text to image feature with various styles.",
+  'filename': __filename
+}, async (message, input, { cmdName: commandName }) => {
+  try {
+    let text1 = input ? input.split(';')[0] : '';
+    let text2 = input ? input.split(';')[1] : '';
+    if (!text2 || !text1) {
+      return await message.reply(langText("textpro", "example_dual", { prefix, cmd: prefix + commandName }, message.userLang || global.currentUserLang));
+    }
+    return await textToLogoGenerator(message, "create-glitch-text-effect-style-tik-tok-983", text1, text2);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: " + commandName, error);
+  }
+});
+
+smd({
+  'cmdname': "glitch2",
+  'type': "logo",
+  'info': "Some text to image feature with various styles.",
+  'filename': __filename
+}, async (message, input, { cmdName: commandName }) => {
+  try {
+    let text1 = input ? input.split(';')[0] : '';
+    let text2 = input ? input.split(';')[1] : '';
+    if (!text2 || !text1) {
+      return await message.reply(langText("textpro", "example_dual", { prefix, cmd: prefix + commandName }, message.userLang || global.currentUserLang));
+    }
+    return await textToLogoGenerator(message, "create-a-glitch-text-effect-online-free-1026", text1, text2);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: " + commandName, error);
+  }
+});
+
+smd({
+  'cmdname': "grafiti",
+  'type': 'logo',
+  'info': "Some text to image feature with various styles.",
+  'filename': __filename
+}, async (message, input, { cmdName: commandName }) => {
+  try {
+    let text1 = input ? input.split(';')[0] : '';
+    let text2 = input ? input.split(';')[1] : '';
+    if (!text2 || !text1) {
+      return await message.reply(langText("textpro", "example_dual", { prefix, cmd: prefix + commandName }, message.userLang || global.currentUserLang));
+    }
+    return await textToLogoGenerator(message, "create-a-cool-graffiti-text-on-the-wall-1010", text1, text2);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: " + commandName, error);
+  }
+});

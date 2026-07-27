@@ -1,0 +1,416 @@
+/**
+ * @project_name : Empire-Md
+ * @author : Empire Tech Labs
+ * @youtube : https://www.youtube.com/@only_one_empire
+ * @description : Empire-Md, A Multi-functional whatsapp user bot.
+ * @version 1.2.8
+ * Created By Empire Tech Labs.
+ * © 2026 Empire-Md.
+ */
+
+const {
+  smd,
+  prefix,
+  Config,
+  sleep,
+  aitts,
+  TelegraPh,
+  smdBuffer,
+  smdJson,
+  tlang,
+  langText,
+  tr
+} = require("../lib");
+const axios = require("axios");
+const fetch = require('node-fetch');
+const fs = require("fs-extra");
+
+// ==================== CHAT COMMAND (PrinceTech Mistral AI) ====================
+smd({
+  pattern: "chat",
+  desc: "chat with an AI",
+  category: 'ai',
+  use: "<Hii, Empire Tech Labs>",
+  filename: __filename
+}, async (message, query) => {
+  try {
+    let prompt = query || message.reply_text;
+
+    if (!prompt) {
+      return await message.reply(langText("ai", "provide_query", {}, message.userLang || global.currentUserLang));
+    }
+
+    const response = await smdJson(
+      `https://api.princetechn.com/api/ai/chat?apikey=prince&q=${encodeURIComponent(prompt)}`
+    );
+
+    if (response && response.status === 200 && response.success && response.result) {
+      return await message.send(response.result);
+    } else {
+      return await message.reply(langText("ai", "no_response", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: chat", error, "*_No response from chatbot, sorry!!_*");
+  }
+});
+
+// ==================== GPT COMMAND (PrinceTech OpenAI API) ====================
+smd({
+  pattern: "gpt",
+  desc: "chat with OpenAI GPT",
+  category: 'ai',
+  use: "<Hii, Empire Tech Labs>",
+  filename: __filename
+}, async (message, query) => {
+  try {
+    let prompt = query || message.reply_text;
+
+    if (!prompt) {
+      return await message.reply(langText("ai", "provide_query", {}, message.userLang || global.currentUserLang));
+    }
+
+    const response = await smdJson(
+      `https://api.princetechn.com/api/ai/openai?apikey=prince&q=${encodeURIComponent(prompt)}`
+    );
+
+    if (response && response.status === 200 && response.success && response.result) {
+      return await message.send(response.result);
+    } else {
+      return await message.reply(langText("ai", "no_openai", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: gpt", error, "*_No response from AI, sorry!!_*");
+  }
+});
+
+// ==================== GEMINI COMMAND ====================
+smd({
+  pattern: "gemini",
+  desc: "Chat with Gemini AI",
+  category: "ai",
+  use: "<query>",
+  filename: __filename
+}, async (message, query) => {
+  try {
+    let prompt = query || message.reply_text;
+
+    if (!prompt) {
+      return message.reply(
+        `Hello ${message.pushName}, what would you like to ask Gemini?`
+      );
+    }
+
+    const response = await smdJson(
+      `https://api.princetechn.com/api/ai/geminiaipro?apikey=prince&q=${encodeURIComponent(prompt)}`
+    );
+
+    if (response && response.status === 200 && response.success && response.result) {
+      return await message.send(response.result);
+    } else {
+      return await message.reply(langText("ai", "no_gemini", {}, message.userLang || global.currentUserLang));
+    }
+
+  } catch (error) {
+    await message.error(
+      error + "\n\ncommand: gemini",
+      error,
+      "*_No response from Gemini, sorry!_*"
+    );
+  }
+});
+
+// ==================== DEEPSEEK COMMAND ====================
+smd({
+  pattern: "deepseek",
+  alias: ["ds", "deep"],
+  desc: "Chat with DeepSeek AI",
+  category: "ai",
+  use: "<query>",
+  filename: __filename
+}, async (message, query) => {
+  try {
+    let prompt = query || message.reply_text;
+
+    if (!prompt) {
+      return await message.reply(
+        `Hello ${message.pushName}, what would you like to ask DeepSeek?\n*Example: .deepseek What is your model?*`
+      );
+    }
+
+    const response = await smdJson(
+      `https://api.princetechn.com/api/ai/deepseek-v3?apikey=prince&q=${encodeURIComponent(prompt)}`
+    );
+
+    if (response && response.status === 200 && response.success && response.result) {
+      return await message.send(response.result);
+    } else {
+      return await message.reply(langText("ai", "no_deepseek", {}, message.userLang || global.currentUserLang));
+    }
+
+  } catch (error) {
+    await message.error(
+      error + "\n\ncommand: deepseek",
+      error,
+      "*_No response from DeepSeek, sorry!!_*"
+    );
+  }
+});
+
+// ==================== MISTRAL COMMAND ====================
+smd({
+  pattern: "mistral",
+  alias: ["mist", "mistralai"],
+  desc: "Chat with Mistral AI",
+  category: "ai",
+  use: "<query>",
+  filename: __filename
+}, async (message, query) => {
+  try {
+    let prompt = query || message.reply_text;
+
+    if (!prompt) {
+      return await message.reply(
+        `Hello ${message.pushName}, what would you like to ask Mistral?\n*Example: .mistral What is your model?*`
+      );
+    }
+
+    const response = await smdJson(
+      `https://api.princetechn.com/api/ai/mistral?apikey=prince&q=${encodeURIComponent(prompt)}`
+    );
+
+    if (response && response.status === 200 && response.success && response.result) {
+      return await message.send(response.result);
+    } else {
+      return await message.reply(langText("ai", "no_mistral", {}, message.userLang || global.currentUserLang));
+    }
+
+  } catch (error) {
+    await message.error(
+      error + "\n\ncommand: mistral",
+      error,
+      "*_No response from Mistral, sorry!!_*"
+    );
+  }
+});
+
+// ==================== DALLE COMMAND (Free DALL-E API) ====================
+smd({
+  pattern: "dalle",
+  alias: ["dall", "dall-e"],
+  desc: "Generate images with DALL-E",
+  category: 'ai',
+  use: "<image description>",
+  filename: __filename
+}, async (message, query) => {
+  try {
+    if (!query) {
+      return await message.reply(langText("ai", "dalle_query", {}, message.userLang || global.currentUserLang));
+    }
+    
+    const imageUrl = 'https://gurugpt.cyclic.app/dalle?prompt=' + encodeURIComponent(query + " \nNOTE: Make sure to looks like imagination");
+    
+    return await message.bot.sendMessage(message.chat, {
+      image: { url: imageUrl },
+      caption: "[PROMPT]: ```" + query + " ```  \n " + Config.caption + " "
+    });
+    
+  } catch (error) {
+    await message.error(error + "\n\ncommand: dalle", error, "*_No response from DALL-E AI, Sorry!!_*");
+  }
+});
+
+// ==================== FLUX COMMAND ====================
+smd({
+  pattern: "flux",
+  alias: ["fluximg", "fluxai"],
+  desc: "Generate images with Flux AI",
+  category: "ai",
+  use: "<image description>",
+  filename: __filename
+}, async (message, query) => {
+  try {
+    let prompt = query || message.reply_text;
+
+    if (!prompt) {
+      return await message.reply(langText("ai", "flux_desc", {}, message.userLang || global.currentUserLang));
+    }
+
+    const response = await smdJson(
+      `https://api.princetechn.com/api/ai/fluximg?apikey=prince&prompt=${encodeURIComponent(prompt)}`
+    );
+
+    if (response && response.status === 200 && response.success && response.result) {
+      return await message.bot.sendMessage(message.chat, {
+        image: { url: response.result },
+        caption: `*[FLUX AI]*\n\`\`\`${prompt}\`\`\`\n\n${Config.caption}`
+      });
+    } else {
+      return await message.reply(langText("ai", "no_flux", {}, message.userLang || global.currentUserLang));
+    }
+
+  } catch (error) {
+    await message.error(
+      error + "\n\ncommand: flux",
+      error,
+      "*_No response from Flux AI, sorry!!_*"
+    );
+  }
+});
+
+// ==================== IMAGINE COMMAND (Hugging Face) ====================
+smd({
+  pattern: "imagine",
+  alias: ["imagin"],
+  desc: "Generate images with AI",
+  category: 'ai',
+  use: "<boy walking on street>",
+  filename: __filename
+}, async (message, query) => {
+  try {
+    let promptText = query || message.reply_text;
+    if (!promptText) {
+      return await message.reply(langText("ai", "imagine_query", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let aiDescription = false;
+    try {
+      const response = await fetch("https://aemt.me/openai?text=" + (promptText + " \nNOTE: Make sure to looks like imagination, make it short and concise, also in english!"));
+      const data = await response.json();
+      aiDescription = data && data.status && data.result ? data.result : '';
+    } catch (error) {
+      aiDescription = false;
+    }
+    
+    if (!Config.HF_API_KEY) {
+      return await message.reply(langText("ai", "api_key_missing", {}, message.userLang || global.currentUserLang) || "*_Hugging Face API key not configured (HF_API_KEY)._*\nSet it in your `.env` file.");
+    }
+
+    const drawResponse = await fetch(
+      "https://api-inference.huggingface.co/models/prompthero/openjourney-v2",
+      {
+        method: "POST",
+        headers: {
+          'content-type': "application/json",
+          'Authorization': "Bearer " + Config.HF_API_KEY
+        },
+        body: JSON.stringify({ inputs: promptText })
+      }
+    ).then(response => response.blob());
+    
+    const arrayBuffer = await drawResponse.arrayBuffer();
+    const imageBuffer = Buffer.from(arrayBuffer);
+    
+    await message.bot.sendMessage(message.chat, {
+      image: imageBuffer,
+      caption: "*[IMAGINATION]:* ```" + promptText + " ```" + 
+        (aiDescription ? "\n\n*[RESPONSE]:* ```" + aiDescription + "``` \n" : '') + 
+        "  \n " + Config.caption + " "
+    });
+    
+  } catch (error) {
+    await message.error(error + "\n\ncommand: imagine", error, "*_No response from Server side, Sorry!!_*");
+  }
+});
+
+// ==================== RMBG COMMAND (Remove Background) ====================
+smd({
+  pattern: "rmbg",
+  alias: ["removebg"],
+  category: 'ai',
+  filename: __filename,
+  desc: "Remove image Background."
+}, async (message) => {
+  try {
+    if (!Config.REMOVE_BG_KEY) {
+      return message.reply(
+        "```You Dont Have REMOVE_BG_KEY \n" +
+        "Please Create RemoveBG KEY from Given Link \n" +
+        "https://www.remove.bg/\n" +
+        "And Set Key in REMOVE_BG_KEY Var```"
+      );
+    }
+    
+    let mediaTypes = ["imageMessage"];
+    let mediaMessage = mediaTypes.includes(message.mtype) ? message : message.reply_message;
+    
+    if (!mediaMessage || !mediaTypes.includes(mediaMessage?.["mtype"] || "null")) {
+      return await message.send("*_Uhh Dear, Reply to an image_*");
+    }
+    
+    let mediaPath = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+    let imageUrl = await TelegraPh(mediaPath);
+    
+    try {
+      fs.unlinkSync(mediaPath);
+    } catch {}
+    
+    const response = await axios.post(
+      "https://api.remove.bg/v1.0/removebg",
+      {
+        image_url: imageUrl,
+        size: "auto"
+      },
+      {
+        headers: {
+          "X-Api-Key": Config.REMOVE_BG_KEY
+        },
+        responseType: "arraybuffer"
+      }
+    );
+    
+    const result = Buffer.from(response.data, "binary");
+    
+    if (result) {
+      await message.send(result, { caption: Config.caption }, "image", message);
+    } else {
+      await message.send("*_Request not be preceed!!_*");
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: rmbg", error, "*_No responce from remove.bg, Sorry!!_*");
+  }
+});
+
+// ==================== AITTS COMMAND (Text to Speech) ====================
+smd({
+  pattern: 'aitts',
+  desc: "Text to Voice Using Eleven Lab Ai",
+  category: 'ai',
+  use: "<Hii, Empire Tech Labs>",
+  filename: __filename
+}, async (message, query) => {
+  await aitts(message, query || message.reply_text);
+});
+
+// ==================== ALEXA COMMAND (Chat with SimSimi AI) ====================
+smd({
+  pattern: "alexa",
+  category: 'ai',
+  use: "[text]",
+  filename: __filename,
+  desc: "chat with simsimi alexa ai!"
+}, async (message, text) => {
+  try {
+    if (!text) {
+      return await message.reply(`Hi *${message.pushName}*, do you want to talk?`);
+    }
+    
+    const requestOptions = {
+      method: "POST",
+      headers: {
+        'Content-Type': "application/x-www-form-urlencoded"
+      },
+      body: `text=${encodeURIComponent(text)}&lc=en&key=`
+    };
+    
+    const response = await fetch("https://api.simsimi.vn/v1/simtalk", requestOptions);
+    const responseData = await response.json();
+    
+    if (responseData.status === "200" && responseData.message) {
+      message.reply(responseData.message);
+    } else {
+      message.reply(langText("msgs", "no_response", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : alexa", error, false);
+  }
+});

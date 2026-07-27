@@ -1,0 +1,475 @@
+/**
+ * @project_name : Empire-Md
+ * @author : Empire Tech Labs
+ * @youtube : https://www.youtube.com/@only_one_empire
+ * @description : Empire-Md, A Multi-functional whatsapp user bot.
+ * @version 1.2.8
+ * Created By Empire Tech Labs.
+ * Â© 2026 Empire-Md.
+ */
+
+const Config = require("../config");
+const fs = require("fs");
+const path = require("path");
+
+let {
+  fancytext,
+  tlang,
+  tiny,
+  runtime,
+  formatp,
+  botpic,
+  prefix,
+  sck1,
+  smd,
+  bot_,
+  listLanguages,
+  getLangName,
+  langText,
+  reloadLocale
+} = require('../lib');
+
+const { heroku, render, koyeb } = require('../lib/koyeb+heroku+render');
+
+const appName = Config.HEROKU_APP_NAME ? Config.HEROKU_APP_NAME.toLowerCase() : '';
+const authToken = Config.HEROKU_API_KEY;
+const HEROKU = !!(authToken && appName);
+
+// Function to reload config after variable updates
+let updateConfig = () => {
+  try {
+    delete require.cache["../config"];
+    require("../config");
+    return true;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+function getActivePlatform() {
+  if (Config.HEROKU_APP_NAME && Config.HEROKU_API_KEY) return 'heroku';
+  if (process.env.KOYEB_API && process.env.KOYEB_API !== "false") return 'koyeb';
+  if (process.env.RENDER_API && process.env.RENDER_API !== "false") return 'render';
+  return null;
+}
+
+function pickUserNumber(message, input = '') {
+  const fromReply = message.reply_message?.sender || message.quoted?.sender || '';
+  const fromMention = message.mentionedJid && message.mentionedJid[0] ? message.mentionedJid[0] : '';
+  const fromText = (input || '').match(/\d{5,16}/)?.[0] || '';
+  return (fromReply || fromMention || fromText).replace(/[^0-9]/g, '');
+}
+
+function updateLocalMode(mode) {
+  const configPath = path.join(__dirname, "../config.js");
+  let configText = fs.readFileSync(configPath, "utf8");
+  configText = configText.replace(
+    /WORKTYPE:\s*process\.env\.WORKTYPE\s*\|\|\s*process\.env\.MODE\s*\|\|\s*["'](?:private|public)["']/,
+    'WORKTYPE: process.env.WORKTYPE || process.env.MODE|| "' + mode + '"'
+  );
+  fs.writeFileSync(configPath, configText, "utf8");
+  process.env.WORKTYPE = mode;
+  Config.WORKTYPE = mode;
+  updateConfig();
+}
+
+// ==================== GETSUDO COMMAND ====================
+smd({
+  cmdname: "getsudo",
+  alias: ["mods", "gsudo"],
+  info: "get sudo users list.",
+  fromMe: true,
+  type: "misc",
+  filename: __filename
+}, async (message) => {
+  let sudoUsers = global.sudo.split(',')
+    .filter(user => user && user !== 'null')
+    .map(user => user.trim());
+  
+  let sudoList = sudoUsers.map((user, index) => 
+    "  " + (index + 1) + " ã€„ @" + user + "\n\n"
+  ).join('');
+  
+  let mentionList = [message.sender, ...sudoUsers.map(user => user + "@s.whatsapp.net")];
+  
+  if (!sudoList || !sudoUsers || !sudoUsers[0]) {
+    return await message.reply(langText("misc", "no_sudo", {}, message.userLang || global.currentUserLang));
+  }
+  
+  let outputText = ("\n   ðŸ‘¤ *" + (Config.botname ? Config.botname : "EMPIRE-MD ") + " MODS* ðŸ‘¤\n   \n" + sudoList).trim();
+  
+  return await message.reply("https://telegra.ph/file/5fd51597b0270b8cff15b.png", {
+    caption: outputText,
+    mentions: mentionList
+  }, "img", message);
+});
+
+// ==================== SET BOT LANGUAGE ====================
+smd({
+  pattern: "setbotlang",
+  alias: ["botlang", "defaultlang"],
+  fromMe: true,
+  desc: "Set default bot language for all users",
+  category: "misc",
+  filename: __filename,
+  use: "<code|list>"
+}, async (message, input, { Void }) => {
+  try {
+    const langs = listLanguages();
+    const action = (input || "").trim().toLowerCase();
+    const botJid = Void.decodeJid(Void.user.id);
+
+    if (!action || action === "list") {
+      const list = langs.map((code) => "• `" + code + "` — " + getLangName(code)).join("\n");
+      return await message.reply(
+        "*Default language:* `" + (global.language || "en") + "`\n\n" +
+        langText("language", "list", { list }, global.language)
+      );
+    }
+
+    if (!langs.includes(action)) {
+      return await message.reply(langText("language", "invalid", { prefix }, global.language));
+    }
+
+    await bot_.findOne({ id: "bot_" + botJid }) || await bot_.new({ id: "bot_" + botJid });
+    await bot_.updateOne({ id: "bot_" + botJid }, { language: action });
+    global.language = action;
+    reloadLocale();
+
+    return await message.reply(
+      langText("language", "bot_set", { name: getLangName(action), code: action }, action)
+    );
+  } catch (error) {
+    await message.error(error + "\n\ncommand: setbotlang", error);
+  }
+});
+
+// ==================== SETSUDO COMMAND ====================
+smd({
+  pattern: "setsudo",
+  alias: ["ssudo", "setmod"],
+  fromMe: true,
+  desc: "Make sudo to a user",
+  category: 'misc',
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let phoneNumber = pickUserNumber(message, input);
+    
+    if (!phoneNumber) {
+      return await message.reply(langText("misc", "provide_sudo_user", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let sudoList = global.sudo.split(',').filter(Boolean).map(number => number.replace(/[^0-9]/g, ''));
+
+    if (sudoList.includes(phoneNumber)) {
+      return message.reply(langText("misc", "sudo_exists", {}, message.userLang || global.currentUserLang));
+    }
+    
+    sudoList.push(phoneNumber);
+    global.sudo = sudoList.join(',');
+    
+    let platform = getActivePlatform();
+    let updateResult = { status: false };
+    
+    if (platform === 'heroku') {
+      updateResult = await heroku.addvar("SUDO", global.sudo);
+    } else if (platform === 'koyeb') {
+      let res = await koyeb.change_env("SUDO:" + global.sudo);
+      updateResult = { status: !res.includes("Please put") };
+    } else if (platform === 'render') {
+      updateResult = await render.addvar("SUDO", global.sudo);
+    } else {
+      updateResult = { status: true };
+    }
+    
+    if (updateResult.status) {
+      return message.reply(langText("misc", "sudo_added", { phone: phoneNumber, list: global.sudo }, message.userLang || global.currentUserLang));
+    } else {
+      await message.reply(langText("misc", "sudo_temp_added", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: setsudo", error);
+  }
+});
+
+// ==================== DELSUDO COMMAND ====================
+smd({
+  pattern: 'delsudo',
+  alias: ["dsudo", "delmod"],
+  fromMe: true,
+  desc: "delete sudo user.",
+  category: "misc",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let phoneNumber = pickUserNumber(message, input);
+    
+    if (!phoneNumber) {
+      return await message.reply(langText("misc", "provide_sudo_user", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let sudoList = global.sudo.split(',').filter(Boolean).map(number => number.replace(/[^0-9]/g, ''));
+    
+    if (!sudoList.includes(phoneNumber)) {
+      return await message.reply(langText("misc", "sudo_not_found", {}, message.userLang || global.currentUserLang));
+    }
+
+    global.sudo = sudoList.filter(number => number !== phoneNumber).join(',');
+    
+    let platform = getActivePlatform();
+    let updateResult = { status: false };
+    
+    if (platform === 'heroku') {
+      updateResult = await heroku.addvar("SUDO", global.sudo);
+    } else if (platform === 'koyeb') {
+      let res = await koyeb.change_env("SUDO:" + global.sudo);
+      updateResult = { status: !res.includes("Please put") };
+    } else if (platform === 'render') {
+      updateResult = await render.addvar("SUDO", global.sudo);
+    } else {
+      updateResult = { status: true };
+    }
+    
+    if (updateResult.status) {
+      return message.reply(langText("misc", "sudo_removed", { phone: phoneNumber, list: global.sudo }, message.userLang || global.currentUserLang));
+    } else {
+      await message.reply(langText("misc", "sudo_temp_removed", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: delsudo", error);
+  }
+});
+
+// ==================== ALLVAR COMMAND ====================
+smd({
+  pattern: "mode",
+  alias: ["worktype"],
+  desc: "set bot mode private/public",
+  category: "misc",
+  fromMe: true,
+  filename: __filename
+}, async (message, input) => {
+  try {
+    const mode = (input || '').trim().toLowerCase().split(/\s+/)[0];
+
+    if (!["private", "public"].includes(mode)) {
+      return await message.reply(langText("misc", "mode_current", { mode: Config.WORKTYPE, prefix }, message.userLang || global.currentUserLang));
+    }
+
+    updateLocalMode(mode);
+
+    let platform = getActivePlatform();
+    if (platform === 'heroku') {
+      await heroku.addvar("WORKTYPE", mode);
+      await heroku.addvar("MODE", mode);
+    } else if (platform === 'koyeb') {
+      await koyeb.change_env("WORKTYPE:" + mode);
+      await koyeb.change_env("MODE:" + mode);
+    } else if (platform === 'render') {
+      await render.addvar("WORKTYPE", mode);
+      await render.addvar("MODE", mode);
+    }
+
+    return await message.reply(langText("misc", "mode_updated", { mode }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: mode", error, "*Could not update mode.*");
+  }
+});
+
+smd({
+  pattern: 'allvar',
+  alias: ["getallvar", "allvars"],
+  desc: "To get All environment variables",
+  fromMe: true,
+  category: "misc",
+  filename: __filename
+}, async (message) => {
+  try {
+    let platform = getActivePlatform();
+    if (platform === 'heroku') {
+      let result = await heroku.getallvar();
+      if (result.status) return message.send(result.data);
+    } else if (platform === 'koyeb') {
+      let result = await koyeb.getallvar();
+      if (result) return message.send(result);
+    } else if (platform === 'render') {
+      let result = await render.getallvar();
+      if (result.status) return message.send(result.data);
+    }
+    return message.reply(langText("misc", "configure_deploy", {}, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: allvar", error);
+  }
+});
+
+// ==================== NEWVAR COMMAND (Add Variable) ====================
+smd({
+  pattern: "newvar",
+  alias: ["addvar", "avar"],
+  desc: "To Set environment variables",
+  category: "misc",
+  fromMe: true,
+  filename: __filename
+}, async (message, input, { cmdName }) => {
+  try {
+    if (!input) {
+      return message.reply(langText("misc", "var_use_example", { prefix, cmd: cmdName }, message.userLang || global.currentUserLang));
+    }
+    
+    const colonIndex = input.indexOf(':');
+    const variableName = input.slice(0, colonIndex).toUpperCase().trim();
+    const variableValue = input.slice(colonIndex + 1).trim();
+    
+    process.env[variableName] = variableValue;
+    updateConfig();
+    
+    if (!variableValue) {
+      return message.reply(langText("msgs", "provide_value", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let platform = getActivePlatform();
+    let result = { status: false, data: "Platform not configured." };
+    
+    if (platform === 'heroku') {
+      result = await heroku.addvar(variableName, variableValue);
+    } else if (platform === 'koyeb') {
+      let res = await koyeb.change_env(variableName + ":" + variableValue);
+      result = { status: !res.includes("Please put"), data: res };
+    } else if (platform === 'render') {
+      result = await render.addvar(variableName, variableValue);
+    }
+    
+    if (result.status) {
+      return message.reply(langText("misc", "var_added", { name: variableName, value: variableValue }, message.userLang || global.currentUserLang));
+    } else {
+      await message.reply(langText("misc", "var_add_failed", { error: result.data }, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: " + cmdName, error);
+  }
+});
+
+// ==================== GETVAR COMMAND ====================
+smd({
+  pattern: 'getvar',
+  desc: "To Get An environment variable value",
+  category: "misc",
+  fromMe: true,
+  filename: __filename
+}, async (message, input, { cmdName }) => {
+  try {
+    if (!input) {
+      return message.reply(langText("misc", "var_name_needed", { prefix, cmd: cmdName }, message.userLang || global.currentUserLang));
+    }
+    
+    const variableName = input.split(" ")[0].toUpperCase();
+    let platform = getActivePlatform();
+    
+    if (platform === 'heroku') {
+      let result = await heroku.getvar(variableName);
+      if (result.status) {
+        return result.data 
+          ? message.reply(langText("misc", "var_get_value", { name: variableName, value: result.data }, message.userLang || global.currentUserLang))
+          : message.reply(langText("misc", "var_not_exist", { name: variableName }, message.userLang || global.currentUserLang));
+      }
+    } else if (platform === 'koyeb') {
+      let result = await koyeb.getvar(variableName);
+      if (result) {
+        return message.reply('*' + result);
+      }
+    } else if (platform === 'render') {
+      let result = await render.getvar(variableName);
+      if (result.status) {
+        return result.data 
+          ? message.reply(langText("misc", "var_get_value", { name: variableName, value: result.data }, message.userLang || global.currentUserLang))
+          : message.reply(langText("misc", "var_not_exist", { name: variableName }, message.userLang || global.currentUserLang));
+      }
+    }
+    return message.reply(langText("misc", "var_retrieve_failed", {}, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: " + cmdName, error);
+  }
+});
+
+// ==================== SETVAR COMMAND (Update Variable) ====================
+smd({
+  pattern: 'setvar',
+  desc: "To Update environment variables",
+  category: 'misc',
+  fromMe: true,
+  filename: __filename
+}, async (message, input, { smd: commandName }) => {
+  try {
+    if (!input) {
+      return message.reply(langText("msgs", "provide_var", {}, message.userLang || global.currentUserLang));
+    }
+    
+    const colonIndex = input.indexOf(':');
+    const variableName = input.slice(0, colonIndex).toUpperCase().trim();
+    const variableValue = input.slice(colonIndex + 1).trim();
+    
+    if (!variableValue) {
+      return message.reply(langText("msgs", "provide_value", {}, message.userLang || global.currentUserLang));
+    }
+    
+    process.env[variableName] = variableValue;
+    updateConfig();
+    
+    let platform = getActivePlatform();
+    let result = { status: false, data: "Platform not configured." };
+    
+    if (platform === 'heroku') {
+      result = await heroku.setvar(variableName, variableValue);
+    } else if (platform === 'koyeb') {
+      let res = await koyeb.change_env(variableName + ":" + variableValue);
+      result = { status: !res.includes("Please put"), data: res };
+    } else if (platform === 'render') {
+      result = await render.addvar(variableName, variableValue);
+    }
+    
+    if (result.status) {
+      await message.reply(langText("misc", "var_updated", { name: variableName, value: variableValue }, message.userLang || global.currentUserLang));
+    } else {
+      await message.reply(langText("misc", "var_update_failed", { error: result.data }, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: " + commandName, error);
+  }
+});
+
+// ==================== DELVAR COMMAND (Delete Variable) ====================
+smd({
+  pattern: "delvar",
+  alias: ["removevar"],
+  desc: "To Delete environment variables",
+  category: "misc",
+  fromMe: true,
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!input) {
+      return message.reply(langText("misc", "var_del_example", { prefix }, message.userLang || global.currentUserLang));
+    }
+    const variableName = input.toUpperCase().trim();
+    let platform = getActivePlatform();
+    let result = { status: false, data: "Platform not configured." };
+    
+    if (platform === 'heroku') {
+      result = await heroku.addvar(variableName, null);
+    } else if (platform === 'koyeb') {
+      let res = await koyeb.delvar(variableName);
+      result = { status: !res.includes("Please put"), data: res };
+    } else if (platform === 'render') {
+      result = await render.delvar(variableName);
+    }
+    
+    if (result.status) {
+      return message.reply(`*${variableName}* deleted successfully.`);
+    } else {
+      return message.reply(`*Failed to delete ${variableName}:* ${result.data}`);
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: delvar", error);
+  }
+});

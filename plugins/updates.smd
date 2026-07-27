@@ -1,0 +1,513 @@
+let { smd, smdBuffer, tlang, sleep, langText, tr } = require(global.lib_dir || "../lib");
+let fs = require('fs');
+
+// Character trait arrays for random generation
+var personalityTraits = [
+  "Fine", 'Unfriendly', 'Cute', "Sigma", "Chapri", 'Nibba/nibbi', 
+  "Annoying", 'Dilapidated', "Angry person", "Polite", "Burden", 
+  "Great", 'Cringe', 'Liar'
+];
+
+var hobbies = [
+  'Cooking', "Dancing", "Playing", "Gaming", "Painting", 
+  "Helping Others", "Watching anime", "Reading", "Riding Bike", 
+  "Singing", "Chatting", "Sharing Memes", "Drawing", 
+  "Eating Parents Money", "Playing Truth or Dare", "Staying Alone"
+];
+
+var appearanceRating = ["Yes", 'No', "Very Ugly", "Very Handsome"];
+
+var characterTypes = [
+  "Caring", "Generous", "Angry person", "Sorry", "Submissive", 
+  "Fine", "Im sorry", "Kind Hearted", "Patient", "UwU", "Top", "Helpful"
+];
+
+var checkmeCache = {};
+
+// Command: Random character profile generator
+smd({
+  'cmdname': "checkme",
+  'alias': ['aboutme'],
+  'desc': "Check random information about your character!",
+  'category': 'updates',
+  'filename': __filename
+}, async (message, text) => {
+  try {
+    let targetUser = message.sender;
+    
+    // Allow creator to check others by reply or mention
+    if (message.isCreator) {
+      targetUser = message.reply_message ? 
+        message.reply_message.sender : 
+        message.mentionedJid[0] ? 
+        message.mentionedJid[0] : 
+        targetUser;
+    }
+    
+    // Use cached result or generate new one (reset with fresh/reset/new/why/update)
+    let profileText = !/fresh|reset|new|why|update/g.test(text) && checkmeCache[targetUser] ? 
+      checkmeCache[targetUser] : 
+      `*ABOUT @${targetUser.split('@')[0]}*\n  \n` +
+      `*Name :* ${(await message.bot.getName(targetUser)).split("\n").join("  ")}\n` +
+      `*Characteristic :* ${personalityTraits[Math.floor(Math.random() * personalityTraits.length)]}\n` +
+      `*Hobby :* ${hobbies[Math.floor(Math.random() * hobbies.length)]}\n` +
+      `*Simp :* ${Math.floor(Math.random() * 101)}%\n` +
+      `*Great :* ${Math.floor(Math.random() * 101)}%\n` +
+      `*Handsome :* ${appearanceRating[Math.floor(Math.random() * appearanceRating.length)]}\n` +
+      `*Character :* ${characterTypes[Math.floor(Math.random() * characterTypes.length)]}\n` +
+      `*Good Morals :* ${Math.floor(Math.random() * 101)}%\n` +
+      `*Bad Morals :* ${Math.floor(Math.random() * 101)}%\n` +
+      `*Intelligence :* ${Math.floor(Math.random() * 101)}%\n` +
+      `*Courage :* ${Math.floor(Math.random() * 101)}%\n` +
+      `*Afraid :* ${Math.floor(Math.random() * 101)}%\n` +
+      `  \n *ALL ABOUT YOU*`;
+    
+    checkmeCache[targetUser] = profileText;
+    
+    message.bot.sendUi(
+      message.from, 
+      { 'caption': profileText, 'mentions': [targetUser] }, 
+      { 'quoted': message }, 
+      "image", 
+      await message.getpp(targetUser), 
+      true
+    );
+  } catch (error) {
+    message.error(error + "\n\nCommand:aboutme", error, false);
+  }
+});
+
+// Command: Channel support links
+smd({
+  'pattern': "channel",
+  'type': "updates",
+  'info': "WILLIS-MD Support Channels"
+}, async (message) => {
+  try {
+    let contextInfo = await message.bot.contextInfo(
+      "ᴡɪʟʟɪꜱ ᴍᴅ", 
+      "Hello " + message.senderName, 
+      await smdBuffer("https://telegra.ph/file/7427cb16882155ff6aa71.jpg"), 
+      1, 
+      "https://whatsapp.com/channel/0029VbBpPLa4yltGWSKWlC1L", 
+      3
+    );
+    
+    message.send(
+      "*https://whatsapp.com/channel/0029VbBpPLa4yltGWSKWlC1L*\n" +
+      "*JOIN WHATSAPP CHANNEL TO GET UPDATES.*\n\n\n" +
+      "*https://youtube.com/c/only_one_empire !*\n" +
+      "*SUPPORT MY YOUTUBE CHANNEL 😊*\n",
+      { 'contextInfo': contextInfo }, 
+      'empire', 
+      message
+    );
+  } catch (error) {
+    message.error(error + "\n\nCommand: channel", error, false);
+  }
+});
+
+// Command: Clear temporary files
+smd({
+  'pattern': "cleartmp",
+  'type': "updates",
+  'info': "Clear temporary files cache"
+}, async (message) => {
+  try {
+    if (fs.existsSync("./temp")) {
+      fs.readdirSync("./temp").forEach(file => fs.rmSync("./temp/" + file));
+    }
+    await message.reply("_The *temp* folder has been cleaned_");
+  } catch (error) {
+    message.error(error + "\n\nCommand: cleartmp", error, false);
+  }
+});
+
+// Command: Report bugs or request features
+smd({
+  'cmdname': "request",
+  'alias': ["reportbug", "report"],
+  'desc': "report bug/features of bot to its creator!",
+  'category': "updates",
+  'filename': __filename
+}, async (message, text) => {
+  try {
+    if (!text) {
+      return message.reply(`Example : ${prefix}request [REQUEST/BUG] yt commands are not working!`);
+    }
+    
+    if (text.split(" ").length < 5) {
+      return message.reply("_your `REQUEST/BUG` must have `5 words` !_");
+    }
+    
+    let reportDetails = `\n\n*User* : @${message.senderNum}\n\n*Request/Bug* : ${text}`;
+    let userConfirmation = `\n\n*Hii ${message.senderName.split("\n").join(" ")}, Your request has been forwarded to my Creator!*.`;
+    
+    // Forward to creator
+    await message.sendMessage("2348078582627@s.whatsapp.net", {
+      'text': "*| REQUEST/BUG |*" + reportDetails,
+      'mentions': [message.sender]
+    }, { 'quoted': message });
+    
+    // Confirm to user
+    await message.reply(
+      "*| REQUEST/BUG |*" + userConfirmation + reportDetails, 
+      { 'mentions': [message.sender] }, 
+      "empire", 
+      message
+    );
+  } catch (error) {
+    message.error(error + "\n\nCommand: request", error, false);
+  }
+});
+
+// Command: Temporarily close group chat
+smd({
+  'cmdname': "closetime",
+  'alias': ["setclose", "setmute"],
+  'desc': "set temporary timer to close a group chat!",
+  'category': 'updates',
+  'filename': __filename
+}, async (message, text, { args }) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang("group"));
+    }
+    if (!message.isBotAdmin) {
+      return message.reply(tlang("botAdmin"));
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang("admin"));
+    }
+    
+    let timeUnit = args[1] || '';
+    let timeValue = parseInt(args[0]) || '';
+    
+    if (!timeValue || isNaN(timeValue)) {
+      return await message.reply(`*please provide time with type*\n*Use : ${prefix}setclose 2 minute*`);
+    }
+    
+    // Calculate milliseconds based on unit
+    var durationMs;
+    if (timeUnit.includes("sec")) {
+      durationMs = args[0] * 1000;
+    } else if (timeUnit.includes("min")) {
+      durationMs = args[0] * 60000;
+    } else if (timeUnit.includes('hour')) {
+      durationMs = args[0] * 3600000;
+    } else {
+      return message.reply(
+        `*Please provide an option below !*\n` +
+        `      *${prefix}setclose 30 second*\n` +
+        `      *${prefix}setclose 10 minute*\n` +
+        `      *${prefix}setclose 1 hour*`
+      );
+    }
+    
+    message.reply(`*Group close in next '${args[0]} ${args[1]}'!*`);
+    
+    setTimeout(() => {
+      message.bot.groupSettingUpdate(message.from, 'announcement');
+      message.reply(langText("group", "group_closed", {}, message.userLang || global.currentUserLang));
+    }, durationMs);
+  } catch (error) {
+    console.log({ 'error': error });
+  }
+});
+
+// Command: Temporarily open group chat
+smd({
+  'cmdname': "opentime",
+  'alias': ["setopen", 'setunmute'],
+  'desc': "set temporary timer to open a group chat!",
+  'category': "updates",
+  'filename': __filename
+}, async (message, text, { args }) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang('group'));
+    }
+    if (!message.isBotAdmin) {
+      return message.reply(tlang('botAdmin'));
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang("admin"));
+    }
+    
+    let timeUnit = args[1] || '';
+    let timeValue = parseInt(args[0]) || '';
+    
+    if (!timeValue || isNaN(timeValue)) {
+      return await message.reply(`*please provide time with type*\n*Use : ${prefix}setopen 2 minute*`);
+    }
+    
+    // Calculate milliseconds based on unit
+    var durationMs;
+    if (timeUnit.includes("sec")) {
+      durationMs = args[0] * 1000;
+    } else if (timeUnit.includes("min")) {
+      durationMs = args[0] * 60000;
+    } else if (timeUnit.includes("hour")) {
+      durationMs = args[0] * 3600000;
+    } else {
+      return message.reply(
+        `*Please provide an option below !*\n` +
+        `      *${prefix}setopen 40 second*\n` +
+        `      *${prefix}setopen 10 minute*\n` +
+        `      *${prefix}setopen 1 hour*`
+      );
+    }
+    
+    message.reply(`*Group open in next '${args[0]} ${args[1]}'!*`);
+    
+    setTimeout(() => {
+      message.bot.groupSettingUpdate(message.from, "not_announcement");
+      message.reply(langText("group", "group_opened", {}, message.userLang || global.currentUserLang));
+    }, durationMs);
+  } catch (error) {
+    console.log({ 'error': error });
+  }
+});
+
+// Command: Enable disappearing messages
+smd({
+  'cmdname': "ephemeral",
+  'alias': ["disapear"],
+  'desc': "enable disappearing messages from chat!",
+  'category': "updates",
+  'filename': __filename
+}, async (message, text, { args }) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang("group"));
+    }
+    if (!message.isBotAdmin) {
+      return message.reply(tlang("botAdmin"));
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang("admin"));
+    }
+    
+    if (!text) {
+      return await message.reply(`*please provide time with type*\n*Use : ${prefix}ephemeral on 7 days*`);
+    }
+    
+    // Turn off disappearing messages
+    if (['off', "deact", "disable"].includes(text.split(" ")[0].toLowerCase())) {
+      await message.bot.sendMessage(message.chat, {
+        'disappearingMessagesInChat': false
+      });
+      return await message.reply("_Done_");
+    }
+    
+    let timeUnit = args[2] || "day";
+    let timeValue = parseInt(args[1]) || 7;
+    
+    // Calculate seconds based on unit
+    var durationSeconds = 604800; // Default 7 days
+    if (timeUnit.includes("hour")) {
+      durationSeconds = 86400; // 24 hours
+    } else if (timeUnit.includes('day')) {
+      timeValue = timeValue > 30 ? 90 : 7; // Cap at 90 days
+      durationSeconds = timeValue * 24 * 60 * 60;
+    }
+    
+    if (['on', "act", "enable"].includes(text.split(" ")[0].toLowerCase())) {
+      await message.bot.sendMessage(message.chat, {
+        'disappearingMessagesInChat': durationSeconds
+      });
+      await message.reply(`_Now Message disappears from chat in '${timeValue} ${timeUnit}'!_`);
+    } else {
+      return message.reply(
+        `*Please provide an option below !*\n` +
+        `    *${prefix}disapear on 24 hour*\n` +
+        `    *${prefix}disapear on 7/90 days*\n` +
+        `  *OR*\n` +
+        `    *${prefix}disapear off(disable)*`
+      );
+    }
+  } catch (error) {
+    console.log({ 'error': error });
+  }
+});
+
+// Helper function: Process image with Vyro AI
+async function processImage(imageBuffer, endpoint) {
+  try {
+    const FormData = require("form-data");
+    return new Promise(async (resolve, reject) => {
+      let form = new FormData();
+      let apiUrl = "https://inferenceengine.vyro.ai/" + endpoint;
+      
+      form.append('model_version', 1, {
+        'Content-Transfer-Encoding': "binary",
+        'contentType': "multipart/form-data; charset=utf-8"
+      });
+      
+      form.append("image", Buffer.from(imageBuffer), {
+        'filename': endpoint + ".jpg",
+        'contentType': "image/jpeg"
+      });
+      
+      form.submit({
+        'url': apiUrl,
+        'host': "inferenceengine.vyro.ai",
+        'path': '/' + endpoint,
+        'protocol': 'https:',
+        'headers': {
+          'User-Agent': "okhttp/4.9.3",
+          'Connection': "Keep-Alive",
+          'Accept-Encoding': "gzip"
+        }
+      }, function(error, response) {
+        if (error) reject();
+        
+        let chunks = [];
+        response.on("data", function(chunk) {
+          chunks.push(chunk);
+        }).on('end', () => {
+          resolve(Buffer.concat(chunks));
+        }).on("error", err => {
+          reject();
+        });
+      });
+    });
+  } catch (error) {
+    console.log(error);
+    return imageBuffer;
+  }
+}
+
+// Command: Enhance image quality (Remini)
+smd({
+  'cmdname': "remini",
+  'desc': "enhance image quality!",
+  'type': "updates",
+  'filename': __filename
+}, async (message) => {
+  let imageMessage = message.image ? message : message.reply_message;
+  
+  if (!imageMessage || !imageMessage.image) {
+    return await message.send("*Reply to image, to enhance quality!*");
+  }
+  
+  try {
+    let imageBuffer = await imageMessage.download();
+    const enhancedImage = await processImage(imageBuffer, "enhance");
+    await message.send(enhancedImage, {}, 'img', message);
+    imageBuffer = false;
+  } catch (error) {
+    message.error(error + "\n\nCommand: remini", error, "*Process Denied :(*");
+  }
+});
+
+// Command: Dehaze image
+smd({
+  'cmdname': "dehaze",
+  'desc': "enhance image quality!",
+  'type': "updates",
+  'filename': __filename
+}, async (message) => {
+  let imageMessage = message.image ? message : message.reply_message;
+  
+  if (!imageMessage || !imageMessage.image) {
+    return await message.send("*Reply to image, to enhance quality!*");
+  }
+  
+  try {
+    let imageBuffer = await imageMessage.download();
+    const dehazedImage = await processImage(imageBuffer, "dehaze");
+    await message.send(dehazedImage, {}, "img", message);
+    imageBuffer = false;
+  } catch (error) {
+    message.error(error + "\n\nCommand: dehaze", error, "*Process Denied :(*");
+  }
+});
+
+// Command: Recolor image
+smd({
+  'cmdname': "recolor",
+  'desc': "enhance image quality!",
+  'type': "updates",
+  'filename': __filename
+}, async (message) => {
+  let imageMessage = message.image ? message : message.reply_message;
+  
+  if (!imageMessage || !imageMessage.image) {
+    return await message.send("*Reply to image, to enhance quality!*");
+  }
+  
+  try {
+    let imageBuffer = await imageMessage.download();
+    const recoloredImage = await processImage(imageBuffer, 'recolor');
+    await message.send(recoloredImage, {}, 'img', message);
+    imageBuffer = false;
+  } catch (error) {
+    message.error(error + "\n\nCommand: recolor", error, "*Process Denied :(*");
+  }
+});
+
+// Command: Save group contacts as VCF file
+smd({
+  'cmdname': "svcontact",
+  'alias': ["savecontact", "vcf"],
+  'desc': "get Contacts of group members!",
+  'category': "updates",
+  'filename': __filename
+}, async (message, text) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang("group"));
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang("admin"));
+    }
+    
+    let groupMetadata = message.metadata;
+    let vcardData = '';
+    
+    // Generate VCF data for each participant
+    for (let participant of groupMetadata.participants) {
+      let contactName = /2348078582627|2348144250768/g.test(participant.id) ? 
+        "Willis" : 
+        '' + participant.id.split('@')[0];
+      
+      vcardData += 
+        "BEGIN:VCARD\n" +
+        "VERSION:3.0\n" +
+        "FN:[SMD] " + contactName + "\n" +
+        "TEL;type=CELL;type=VOICE;waid=" + participant.id.split('@')[0] + 
+        ":+" + participant.id.split('@')[0] + "\n" +
+        "END:VCARD\n";
+    }
+    
+    let fileName = (groupMetadata.subject?.split("\n").join(" ") || '') + "_Contacts.vcf";
+    let filePath = "./temp/" + fileName;
+    
+    message.reply(`*Please wait, Saving \`${groupMetadata.participants.length}\` contacts*`);
+    
+    fs.writeFileSync(filePath, vcardData.trim());
+    await sleep(4000);
+    
+    // Send VCF file
+    message.bot.sendMessage(message.chat, {
+      'document': fs.readFileSync(filePath),
+      'mimetype': "text/vcard",
+      'fileName': fileName,
+      'caption': 
+        "\n*ALL MEMBERS CONTACT SAVED* \n" +
+        `Group: *${(groupMetadata.subject?.split("\n").join(" ") || groupMetadata.subject)}*\n` +
+        `Contact: *${groupMetadata.participants.length}*\n`
+    }, {
+      'ephemeralExpiration': 86400,
+      'quoted': message
+    });
+    
+    // Clean up temp file
+    try {
+      fs.unlinkSync(filePath);
+    } catch (error) {}
+  } catch (error) {
+    message.error(error + "\n\nCommand: svcontact", error, "_ERROR Process Denied :(_");
+  }
+});

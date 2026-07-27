@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://files.catbox.moe/lps6ow.jpg" alt="Empire-Md" width="160" />
+  <img src="https://files.catbox.moe/lps6ow.jpg" alt="Aster-Md" width="160" />
 </p>
 
-<h2 align="center">Empire-Md</h2>
+<h2 align="center">Aster-Md</h2>
 <p align="center">
   <strong>Your all-in-one feature-packed WhatsApp bot</strong>
 </p>
@@ -16,7 +16,7 @@
   <a href="https://chat.whatsapp.com/DG86OkvmerHKHJjkE5X2Wv" target="_blank">
     <img src="https://img.shields.io/badge/Join%20Group-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="Join Group" />
   </a>
-  <a href="https://github.com/efeurhobobullish/Empire-Md/blob/main/LICENCE" target="_blank">
+  <a href="https://github.com/efeurhobobullish/Aster-Md/blob/main/LICENCE" target="_blank">
     <img src="https://badges.frapsoft.com/os/gpl/gpl.png?v=103" alt="License: GPL-3.0" />
   </a>
 </p>
@@ -29,7 +29,7 @@
 
 ## About
 
-**Empire-Md** is a multi-device WhatsApp bot built for reliability and speed. It supports music, smart features, group tools, and runs on Baileys with MongoDB for persistence.
+**Aster-Md** is a multi-device WhatsApp bot built for reliability and speed. It supports music, smart features, group tools, and runs on Baileys with MongoDB for persistence.
 
 ---
 
@@ -42,10 +42,10 @@ Before deploying, you need:
    - [QR code](https://session.empiretech.net.ng/qr) (WhatsApp → **Linked Devices** → Link a device)
 
 2. **MongoDB URI** — Create a database and get your connection string.
-   - [MongoDB setup guide](https://github.com/efeurhobobullish/Empire-Md/wiki/Mongodb-URI)  
+   - [MongoDB setup guide](https://github.com/efeurhobobullish/Aster-Md/wiki/Mongodb-URI)  
    - [Video tutorial](https://www.youtube.com/watch?v=WWrpBCBlyuo)
 
-   **Free MongoDB URL for Empire-Md:**
+   **Free MongoDB URL for Aster-Md:**
    ```
    mongodb+srv://sam:sam@cluster0.u1smxsv.mongodb.net/?retryWrites=true&w=majority
    ```
@@ -54,7 +54,7 @@ Before deploying, you need:
 
 ## Deployment
 
-1. **Fork** the [repository](https://github.com/efeurhobobullish/Empire-Md).
+1. **Fork** the [repository](https://github.com/efeurhobobullish/Aster-Md).
 
 2. **Deploy** using one of the options below:
 
@@ -63,8 +63,8 @@ Before deploying, you need:
    | **Heroku** | [Deploy on Heroku](https://sampandey00011-af12d376b8d4.herokuapp.com/heroku) |
    | **Koyeb**  | [Deploy on Koyeb](https://sampandey00011-af12d376b8d4.herokuapp.com/koyeb) — [Get API key](https://app.koyeb.com/settings/api) |
    | **Railway**| [Deploy on Railway](https://sampandey00011-af12d376b8d4.herokuapp.com/railway) |
-   | **Replit** | [Deploy on Replit](https://repl.it/github/efeurhobobullish/Empire-Md) |
-   | **Mogenius**| [Deploy on Mogenius](https://github.com/efeurhobobullish/Empire-Md/wiki/Deploy-on-MOGENIOUS) |
+   | **Replit** | [Deploy on Replit](https://repl.it/github/efeurhobobullish/Aster-Md) |
+   | **Mogenius**| [Deploy on Mogenius](https://github.com/efeurhobobullish/Aster-Md/wiki/Deploy-on-MOGENIOUS) |
    | **Linux / Shell** | [Deploy in Linux (incl. Termux)](https://github.com/SamPandey001/Secktor-Deploy#deploy-in-any-shell-including-termux) |
 
 3. **More resources**
@@ -78,10 +78,10 @@ Before deploying, you need:
 
 - **WhatsApp group:** [Join here](https://chat.whatsapp.com/DG86OkvmerHKHJjkE5X2Wv)
 
-If Empire-Md is useful to you, consider giving the repo a **star** ⭐.
+If Aster-Md is useful to you, consider giving the repo a **star** ⭐.
 
 ---
 
 <p align="center">
-  <strong>Empire-Md</strong> · Empire Tech
+  <strong>Aster-Md</strong> · Empire Tech
 </p>

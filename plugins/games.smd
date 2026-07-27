@@ -1,0 +1,522 @@
+/**
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+//                                                                                                      //
+//                                ＷＨＡＴＳＡＰＰ ＢＯＴ－ＭＤ ＢＥＴＡ                                   //
+//                                                                                                      // 
+//                                         Ｖ：１．０．１                                                // 
+//                                                                                                      // 
+//            ███████╗███╗   ███╗██████╗ ██╗██████╗ ███████╗   ███╗   ███╗██████╗                       //
+//            ██╔════╝████╗ ████║██╔══██╗██║██╔══██╗██╔════╝   ████╗ ████║██╔══██╗                      //
+//            █████╗  ██╔████╔██║██████╔╝██║██████╔╝█████╗     ██╔████╔██║██║  ██║                      //
+//            ██╔══╝  ██║╚██╔╝██║██╔═══╝ ██║██╔══██╗██╔══╝     ██║╚██╔╝██║██║  ██║                      //
+//            ███████╗██║ ╚═╝ ██║██║     ██║██║  ██║███████╗   ██║ ╚═╝ ██║██████╔╝                      //
+//            ╚══════╝╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝     ╚═╝╚═════╝                       //
+//                                                                                                      //
+//                                                                                                      //
+//                                                                                                      //
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+
+CURRENTLY RUNNING ON BETA VERSION!!
+*
+   * @project_name : Empire-Md
+   * @author : Empire Tech Labs
+   * @youtube : https://www.youtube.com/@only_one_empire
+   * @description : Empire-Md ,A Multi-functional whatsapp user bot.
+   * @version 1.0.0
+*
+   * Licensed under the GPL-3.0 License;
+* 
+   * Created By Empire Tech Labs.
+   * © 2026 Empire-Md.
+**/
+
+const { smd, parseJid, getAdmin, tlang, langText } = require("../lib/");
+const eco = require('discord-mongoose-economy');
+
+if (global.mongodb && global.mongodb !== "false") {
+  try {
+    eco.connect(global.mongodb);
+  } catch (e) {
+    console.error("Economy Database connection error:", e);
+  }
+}
+
+const stickers = [
+  "https://raw.githubusercontent.com/efeurhobobullish/Suhail-Md-Media/main/ᴅɪᴄᴇ/sᴜʜᴀɪʟ-ᴍᴅ-ᴅɪᴄᴇ-1.webp",
+  "https://raw.githubusercontent.com/efeurhobobullish/Suhail-Md-Media/main/ᴅɪᴄᴇ/sᴜʜᴀɪʟ-ᴍᴅ-ᴅɪᴄᴇ-2.webp",
+  "https://raw.githubusercontent.com/efeurhobobullish/Suhail-Md-Media/main/ᴅɪᴄᴇ/sᴜʜᴀɪʟ-ᴍᴅ-ᴅɪᴄᴇ-3.webp",
+  "https://raw.githubusercontent.com/efeurhobobullish/Suhail-Md-Media/main/ᴅɪᴄᴇ/sᴜʜᴀɪʟ-ᴍᴅ-ᴅɪᴄᴇ-3.webp",
+  "https://raw.githubusercontent.com/efeurhobobullish/Suhail-Md-Media/main/ᴅɪᴄᴇ/sᴜʜᴀɪʟ-ᴍᴅ-ᴅɪᴄᴇ-4.webp",
+  "https://raw.githubusercontent.com/efeurhobobullish/Suhail-Md-Media/main/ᴅɪᴄᴇ/sᴜʜᴀɪʟ-ᴍᴅ-ᴅɪᴄᴇ-4.webp",
+  "https://raw.githubusercontent.com/efeurhobobullish/Suhail-Md-Media/main/ᴅɪᴄᴇ/sᴜʜᴀɪʟ-ᴍᴅ-ᴅɪᴄᴇ-5.webp",
+  "https://raw.githubusercontent.com/efeurhobobullish/Suhail-Md-Media/main/ᴅɪᴄᴇ/sᴜʜᴀɪʟ-ᴍᴅ-ᴅɪᴄᴇ-6.webp",
+];
+
+let activeGames = {};
+const WordChainGame = require("../lib/wcg");
+const WCG_JOIN_MS = 90000;
+
+function wcgLang(message, key, vars = {}) {
+  return langText("wcg", key, vars, message.userLang || global.currentUserLang);
+}
+
+function findWcgRoom(chat) {
+  return Object.values(activeGames).find(
+    (room) => room.id && room.id.startsWith("wcg") && room.chat === chat
+  );
+}
+
+function clearWcgTimers(room) {
+  if (room.joinTimer) {
+    clearTimeout(room.joinTimer);
+    room.joinTimer = null;
+  }
+  if (room.turnTimer) {
+    clearTimeout(room.turnTimer);
+    room.turnTimer = null;
+  }
+}
+
+async function sendWcgMentions(message, text, jids) {
+  const mentions = [...new Set(jids.filter(Boolean))];
+  return message.bot.sendMessage(message.chat, { text, mentions });
+}
+
+function wcgTurnPrompt(message, game) {
+  const current = game.getCurrentPlayer();
+  const next = game.getNextPlayer();
+  const currentPhone = WordChainGame.extractPhone(current.jid);
+  const nextPhone = WordChainGame.extractPhone(next.jid);
+  return {
+    text: wcgLang(message, "turn_prompt", {
+      current: currentPhone,
+      next: nextPhone,
+      letter: game.nextLetter.toUpperCase(),
+      size: game.wordSize,
+    }),
+    mentions: [current.jid, next.jid],
+  };
+}
+
+function wcgError(message, result) {
+  return wcgLang(message, result.errorKey, result.vars || {});
+}
+
+async function finishWcgJoin(message, room) {
+  clearWcgTimers(room);
+  await room.game.refresh();
+
+  if (room.game.playerCount < 2) {
+    await room.game.destroy();
+    delete activeGames[room.id];
+    return message.send(wcgLang(message, "not_enough_players"));
+  }
+
+  const startingWord = await room.game.start();
+  const playerList = room.game.players
+    .map((p, index) => `${index + 1}. ${p.name}`)
+    .join("\n");
+  const current = room.game.getCurrentPlayer();
+  const next = room.game.getNextPlayer();
+  const currentPhone = WordChainGame.extractPhone(current.jid);
+  const nextPhone = WordChainGame.extractPhone(next.jid);
+
+  room.state = "PLAYING";
+  await sendWcgMentions(
+    message,
+    wcgLang(message, "game_started", {
+      count: room.game.playerCount,
+      list: playerList,
+      word: startingWord,
+      letter: room.game.nextLetter.toUpperCase(),
+      size: room.game.wordSize,
+      time: room.game.timerSeconds,
+      current: currentPhone,
+      next: nextPhone,
+    }),
+    [current.jid, next.jid]
+  );
+  room.turnTimer = setTimeout(() => handleWcgTurnTimeout(message, room), room.game.timerSeconds * 1000);
+}
+
+async function handleWcgTurnTimeout(message, room) {
+  if (!activeGames[room.id] || room.state !== "PLAYING") return;
+
+  await room.game.refresh();
+  const timedOut = room.game.getCurrentPlayer();
+  if (!timedOut) return;
+
+  await room.game.removePlayer(timedOut.jid);
+  await room.game.refresh();
+
+  if (room.game.playerCount < 2) {
+    await sendWcgMentions(
+      message,
+      wcgLang(message, "timed_out_end", { player: WordChainGame.extractPhone(timedOut.jid) }),
+      [timedOut.jid]
+    );
+    clearWcgTimers(room);
+    await room.game.destroy();
+    delete activeGames[room.id];
+    return;
+  }
+
+  const prompt = wcgTurnPrompt(message, room.game);
+  await sendWcgMentions(
+    message,
+    wcgLang(message, "timed_out", {
+      player: WordChainGame.extractPhone(timedOut.jid),
+      count: room.game.playerCount,
+    }) + "\n\n" + prompt.text,
+    [timedOut.jid, ...prompt.mentions]
+  );
+  room.turnTimer = setTimeout(() => handleWcgTurnTimeout(message, room), room.game.timerSeconds * 1000);
+}
+
+async function endWcgGame(message, room, endedByUser = false) {
+  const result = await room.game.end();
+  clearWcgTimers(room);
+  delete activeGames[room.id];
+  if (!result) return message.send(wcgLang(message, "no_active_end"));
+
+  let text = wcgLang(message, "game_ended") + "\n\n";
+  if (endedByUser) text += wcgLang(message, "ended_by_user") + "\n\n";
+  text += wcgLang(message, "final_stats", {
+    total: result.game.successful_words,
+    max_size: result.game.word_size,
+    players: result.players.length,
+  }) + "\n\n";
+
+  const mentions = [];
+  if (result.winner && result.winner.score > 0) {
+    text += wcgLang(message, "winner", {
+      player: WordChainGame.extractPhone(result.winner.jid),
+      score: result.winner.score,
+    }) + "\n\n";
+    mentions.push(result.winner.jid);
+  }
+
+  text += wcgLang(message, "leaderboard") + "\n";
+  result.players
+    .sort((a, b) => b.score - a.score)
+    .forEach((player, index) => {
+      const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "•";
+      text += wcgLang(message, "leaderboard_line", {
+        medal,
+        name: player.name,
+        score: player.score,
+      }) + "\n";
+    });
+
+  if (mentions.length) {
+    await sendWcgMentions(message, text, mentions);
+  } else {
+    await message.send(text);
+  }
+}
+
+// Dice Game
+smd({
+  pattern: "dice",
+  desc: "Rolling Dice Game",
+  filename: __filename,
+  category: "game",
+}, async (message, args) => {
+  try {
+    const randomIndex = Math.floor(Math.random() * stickers.length);
+    const randomSticker = stickers[randomIndex];
+    
+    return await message.bot.sendMessage(message.chat, {
+      'sticker': { 'url': randomSticker },
+      'packname': 'ᴅɪᴄᴇ',
+      'author': 'ᴇᴍᴘɪʀᴇ-ᴍᴅ'
+    });
+  } catch (error) {
+    const diceEmoji = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+    const reactEmoji = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣'];
+    
+    let index = Math.floor(Math.random() * diceEmoji.length);
+    let msg = await message.bot.sendMessage(message.chat, { 'text': diceEmoji[index] });
+    
+    return await message.bot.sendMessage(message.chat, {
+      'react': { 'text': reactEmoji[index], 'key': msg.key }
+    });
+  }
+});
+
+// Delete TicTacToe session
+smd({
+  pattern: "delttt",
+  desc: "deletes TicTacToe running session.",
+  filename: __filename,
+  category: "game",
+}, async (message, args, { isCreator }) => {
+  if (!message.isGroup) return message.reply(tlang().group);
+  
+  const groupMetadata = message.isGroup ? await message.bot.groupMetadata(message.chat).catch((e) => {}) : "";
+  const groupAdmins = await getAdmin(message.bot, message);
+  const isAdmins = message.isGroup ? groupAdmins.includes(message.sender) : false;
+  
+  if (!isAdmins && !isCreator) return message.send('This command is only for Group Admin and my owner.');
+  
+  let room = Object.values(activeGames).find((room) => room.id && room.id.startsWith("tictactoe"));
+  
+  if (room) {
+    activeGames = {};
+    return message.send(`_Successfully Deleted running TicTacToe game._`);
+  } else {
+    return message.send(`No TicTacToe game🎮 is running.`);
+  }
+});
+
+// TicTacToe Game
+smd({
+  pattern: "ttt",
+  desc: "Play TicTacToe",
+  filename: __filename,
+  category: "game",
+}, async (message, args) => {
+  if (!message.isGroup) return message.reply(tlang().group);
+  
+  let TicTacToe = require("../lib/tictactoe");
+  
+  if (Object.values(activeGames).find((room) => room.id && room.id.startsWith("tictactoe") && [room.game.playerX, room.game.playerO].includes(message.sender))) {
+    return message.send("_A game is already going on_");
+  }
+  
+  let room = Object.values(activeGames).find((room) => room.state === "WAITING" && (args ? room.name === args : true));
+  
+  if (room) {
+    room.o = message.chat;
+    room.game.playerO = message.sender || message.mentionedJid[0];
+    room.state = "PLAYING";
+    
+    let arr = room.game.render().map((v) => {
+      return { X: "❌", O: "⭕", 1: "1️⃣", 2: "2️⃣", 3: "3️⃣", 4: "4️⃣", 5: "5️⃣", 6: "6️⃣", 7: "7️⃣", 8: "8️⃣", 9: "9️⃣" }[v];
+    });
+    
+    let str = `
+Current turn: @${room.game.currentTurn.split("@")[0]}
+Room ID: ${room.id}
+${arr.slice(0, 3).join("  ")}
+${arr.slice(3, 6).join("  ")}
+${arr.slice(6).join("  ")}
+`;
+    
+    return await message.bot.sendMessage(message.chat, { text: str, mentions: [room.game.currentTurn] });
+  } else {
+    room = {
+      id: "tictactoe-" + +new Date(),
+      x: message.chat,
+      o: "",
+      game: new TicTacToe(message.sender, "o"),
+      state: "WAITING",
+    };
+    if (args) room.name = args;
+    message.send("_Waiting for player, use .ttt to join this game._ ");
+    activeGames[room.id] = room;
+  }
+});
+
+// TicTacToe text handler
+smd({ on: "text" }, async (message, text) => {
+  if (!message.isGroup) return;
+  
+  let room = Object.values(activeGames).find(
+    (room) =>
+      room.id &&
+      room.game &&
+      room.state &&
+      room.id.startsWith("tictactoe") &&
+      [room.game.playerX, room.game.playerO].includes(message.sender) &&
+      room.state == "PLAYING"
+  );
+
+  if (room) {
+    let ok;
+    let isWin = false;
+    let isTie = false;
+    let isSurrender = false;
+    
+    if (!/^([1-9]|(me)?give_up|surr?ender|off|skip)$/i.test(message.text)) return;
+    
+    isSurrender = !/^[1-9]$/.test(message.text);
+    
+    if (message.sender !== room.game.currentTurn) {
+      if (!isSurrender) return false;
+    }
+    
+    if (!isSurrender && 1 > (ok = room.game.turn(message.sender === room.game.playerO, parseInt(message.text) - 1))) {
+      message.reply({
+        "-3": "The game is over.",
+        "-2": "Invalid",
+        "-1": "_Invalid Position_",
+        0: "_Invalid Position_",
+      }[ok]);
+      return false;
+    }
+    
+    if (message.sender === room.game.winner) isWin = true;
+    else if (room.game.board === 511) isTie = true;
+    
+    let arr = room.game.render().map((v) => {
+      return { X: "❌", O: "⭕", 1: "1️⃣", 2: "2️⃣", 3: "3️⃣", 4: "4️⃣", 5: "5️⃣", 6: "6️⃣", 7: "7️⃣", 8: "8️⃣", 9: "9️⃣" }[v];
+    });
+    
+    if (isSurrender) {
+      room.game._currentTurn = message.sender === room.game.playerX;
+      isWin = true;
+    }
+    
+    let winner = isSurrender ? room.game.currentTurn : room.game.winner;
+    
+    let str = `Room ID: ${room.id}
+     
+${arr.slice(0, 3).join("  ")}
+${arr.slice(3, 6).join("  ")}
+${arr.slice(6).join("  ")}
+${isWin ? `@${winner.split("@")[0]} Won ! and got 2000💎 in wallet` : isTie ? `Game Tied, well done to both players.` : `Current Turn ${["❌", "⭕"][1 * room.game._currentTurn]} @${room.game.currentTurn.split("@")[0]}`}
+⭕:- @${room.game.playerO.split("@")[0]}
+❌:- @${room.game.playerX.split("@")[0]}`;
+
+    if ((room.game._currentTurn ^ isSurrender ? room.x : room.o) !== message.chat)
+      room[room.game._currentTurn ^ isSurrender ? "x" : "o"] = message.chat;
+    
+    if (isWin) {
+      try {
+        if (global.mongodb && global.mongodb !== "false") {
+          await eco.give(message.sender, "Empire", 2000);
+        }
+      } catch (e) {
+        console.error("Economy Error: ", e);
+      }
+    }
+    
+    if (isWin || isTie) {
+      await message.bot.sendMessage(message.chat, { text: str, mentions: [room.game.playerO, room.game.playerX] });
+      delete activeGames[room.id];
+    } else {
+      await message.bot.sendMessage(message.chat, { text: str, mentions: [room.game.playerO, room.game.playerX] });
+    }
+  }
+});
+
+// Delete Word Chain Game session
+smd({
+  pattern: "delwcg",
+  desc: "deletes Word Chain Game running session.",
+  filename: __filename,
+  category: "game",
+}, async (message, args, { isCreator }) => {
+  if (!message.isGroup) return message.reply(tlang().group);
+  if (!isCreator) return message.reply(tlang().owner);
+
+  const room = findWcgRoom(message.chat);
+  if (room) {
+    clearWcgTimers(room);
+    await room.game.destroy();
+    delete activeGames[room.id];
+    return message.send(wcgLang(message, "del_success"));
+  }
+  return message.send(wcgLang(message, "del_none"));
+});
+
+// Word Chain Game
+smd({
+  pattern: "wcg",
+  desc: "Play Word Chain Game",
+  filename: __filename,
+  category: "game",
+}, async (message, args) => {
+  if (!message.isGroup) return message.reply(tlang().group);
+
+  const room = findWcgRoom(message.chat);
+  const action = (args[0] || "").toLowerCase();
+
+  if (action === "end") {
+    if (!room || room.state !== "PLAYING") {
+      return message.send(wcgLang(message, "no_active_end"));
+    }
+    return endWcgGame(message, room, true);
+  }
+
+  if (room) {
+    await room.game.refresh();
+    if (room.state === "JOINING") {
+      const joined = await room.game.addPlayer(message.sender, message.pushName || "Player");
+      if (!joined) return message.send(wcgLang(message, "already_in"));
+      return message.send(wcgLang(message, "joined", { count: room.game.playerCount }));
+    }
+    return message.send(
+      wcgLang(message, "already_active", {
+        word: room.game.currentWord,
+        letter: room.game.nextLetter.toUpperCase(),
+        size: room.game.wordSize,
+      })
+    );
+  }
+
+  try {
+    WordChainGame.preloadCommonWords();
+    const game = await WordChainGame.create(message.chat);
+    const newRoom = {
+      id: "wcg-" + Date.now(),
+      chat: message.chat,
+      game,
+      state: "JOINING",
+      joinTimer: null,
+      turnTimer: null,
+    };
+    activeGames[newRoom.id] = newRoom;
+    newRoom.joinTimer = setTimeout(() => finishWcgJoin(message, newRoom), WCG_JOIN_MS);
+    return message.send(wcgLang(message, "started"));
+  } catch (error) {
+    console.error("Error starting WCG game:", error);
+    return message.send(wcgLang(message, "start_failed"));
+  }
+});
+
+// Word Chain Game text handler
+smd({ on: "text" }, async (message, text) => {
+  if (!message.isGroup) return;
+
+  const room = findWcgRoom(message.chat);
+  if (!room) return;
+
+  const body = (text || message.text || "").trim();
+  if (!body) return;
+
+  if (room.state === "JOINING") {
+    if (!/^join$/i.test(body)) return;
+    await room.game.refresh();
+    const joined = await room.game.addPlayer(message.sender, message.pushName || "Player");
+    if (!joined) return message.reply(wcgLang(message, "already_in"));
+    return message.reply(wcgLang(message, "joined", { count: room.game.playerCount }));
+  }
+
+  if (room.state !== "PLAYING") return;
+  if (!/^[a-zA-Z]+$/.test(body)) return;
+
+  if (room.turnTimer) {
+    clearTimeout(room.turnTimer);
+    room.turnTimer = null;
+  }
+
+  const result = await room.game.playWord(message.sender, body);
+  if (!result.processed) return;
+
+  if (result.errorKey) {
+    room.turnTimer = setTimeout(() => handleWcgTurnTimeout(message, room), room.game.timerSeconds * 1000);
+    return message.reply(wcgError(message, result));
+  }
+
+  const prompt = wcgTurnPrompt(message, room.game);
+  let reply = wcgLang(message, "word_accepted", { word: result.word, score: result.score });
+  if (result.milestone) {
+    reply += "\n" + wcgLang(message, "milestone", { count: result.milestone });
+  }
+  reply += "\n\n" + prompt.text;
+
+  await sendWcgMentions(message, reply, prompt.mentions);
+  room.turnTimer = setTimeout(() => handleWcgTurnTimeout(message, room), room.game.timerSeconds * 1000);
+});

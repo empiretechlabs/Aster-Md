@@ -1,5 +1,5 @@
 services:
-  - name: empire-md
+  - name: aster-md
     type: web
     runtime: docker
     docker:

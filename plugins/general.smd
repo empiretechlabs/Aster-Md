@@ -1,0 +1,1525 @@
+/**
+ * @project_name : Empire-Md
+ * @author : Empire Tech Labs
+ * @youtube : https://www.youtube.com/@only_one_empire
+ * @description : Empire-Md, A Multi-functional whatsapp user bot.
+ * @version 1.2.8
+ * Created By Empire Tech Labs.
+ * © 2026 Empire-Md.
+ */
+
+const util = require('util');
+const fs = require("fs-extra");
+const { cmd } = require("../lib/plugins");
+const empireMd = require('../lib/plugins');
+const {
+  fancytext,
+  tlang,
+  tiny,
+  bot_,
+  alive,
+  runtime,
+  formatp,
+  smsg,
+  getAdmin,
+  send,
+  react,
+  botpic,
+  sleep,
+  getBuffer,
+  prefix,
+  sck1,
+  smd,
+  sck,
+  getTime,
+  formatDate,
+  groupdb,
+  smdJson,
+  smdBuffer,
+  isAdmin,
+  TelegraPh,
+  aitts,
+  fetchJson,
+  parsedJid,
+  createUrl,
+  commands,
+  stickerCmdKey,
+  langText,
+  tr
+} = require("../lib");
+const Config = require('../config');
+const axios = require("axios");
+const fetch = require('node-fetch');
+const os = require('os');
+
+const getBotDbId = (Void) => "bot_" + Void.decodeJid(Void.user.id);
+
+const saveSetCmdAlias = async (Void) => {
+  const botId = getBotDbId(Void);
+  await bot_.findOne({ id: botId }) || await bot_.new({ id: botId });
+  await bot_.updateOne({ id: botId }, { setcmd: { ...global.setCmdAlias } });
+};
+const speed = require("performance-now");
+const translatte = require("translatte");
+const cron = require('node-cron');
+const { exec } = require("child_process");
+
+const long = String.fromCharCode(8206);
+const readmore = long.repeat(4001);
+var cronStart = false;
+
+// Extracted AI commands and helpers to plugins/ai.smd
+
+// ==================== READMORE COMMAND ====================
+smd({
+  pattern: 'readmore',
+  alias: ["rmore", 'readmor'],
+  desc: "Adds *readmore* in given text.",
+  category: "general",
+  filename: __filename
+}, async (message, text) => {
+  try {
+    let inputText = text ? text : message.reply_text;
+    if (!inputText) {
+      inputText = "*Uhh Dear,Please provide text*\n*Eg:- _.readmor text1 readmore text2_*";
+    } else {
+      inputText += " ";
+    }
+    
+    if (inputText.includes('readmore')) {
+      await message.reply(inputText.replace(/readmore/, String.fromCharCode(0x200e).repeat(4001)));
+    } else {
+      await message.reply(inputText.replace(" ", String.fromCharCode(0x200e).repeat(4001)));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : readmore", error, false);
+  }
+});
+
+// ==================== URL COMMAND ====================
+let pmtypes = ["videoMessage", "imageMessage"];
+
+cmd({
+  pattern: "url",
+  alias: ['createurl'],
+  category: "general",
+  filename: __filename,
+  desc: "image to url.",
+  use: "<video | image>"
+}, async (message) => {
+  try {
+    let mediaMessage = pmtypes.includes(message.mtype) ? message : message.reply_message;
+    if (!mediaMessage || !pmtypes.includes(mediaMessage?.["mtype"])) {
+      return message.reply(langText("msgs", "reply_image_video", {}, message.userLang || global.currentUserLang));
+    }
+    let mediaPath = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+    let url = await createUrl(mediaPath, "catbox");
+    if (!url) {
+      return message.reply(langText("msgs", "url_failed", {}, message.userLang || global.currentUserLang));
+    }
+    try {
+      fs.unlink(mediaPath);
+    } catch {}
+    await message.send(util.format(url), {}, "empire", mediaMessage);
+  } catch (error) {
+    await message.error(error + "\n\ncommand url", error);
+  }
+});
+
+// ==================== UPLOAD COMMAND ====================
+cmd({
+  pattern: "upload",
+  alias: ['url2'],
+  category: "general",
+  filename: __filename,
+  desc: "image to url.",
+  use: "<video | image>"
+}, async (message) => {
+  try {
+    let mediaMessage = pmtypes.includes(message.mtype) ? message : message.reply_message;
+    if (!mediaMessage || !pmtypes.includes(mediaMessage?.["mtype"])) {
+      return message.reply(langText("msgs", "reply_image_video", {}, message.userLang || global.currentUserLang));
+    }
+    let mediaPath = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+    let uploadResult = await createUrl(mediaPath, "catbox");
+    try {
+      fs.unlink(mediaPath);
+    } catch {}
+    let uploadUrl = typeof uploadResult === "string" ? uploadResult : uploadResult?.url;
+    if (!uploadUrl) {
+      return message.reply(langText("msgs", "url_failed", {}, message.userLang || global.currentUserLang));
+    }
+    await message.send(util.format(uploadUrl), {}, 'empire', mediaMessage);
+  } catch (error) {
+    await message.error(error + "\n\ncommand upload", error);
+  }
+});
+
+// ==================== CALC COMMAND ====================
+smd({
+  pattern: 'calc',
+  desc: "calculate an equation.",
+  category: "general",
+  use: "<equation>",
+  filename: __filename
+}, async (message, equation) => {
+  try {
+    if (!equation) {
+      return await message.reply(langText("msgs", "calc_need", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let cleanEquation = equation.replace(/\s+/g, '');
+    if (!/^(\d+([-+%*/]\d+)+)$/.test(cleanEquation)) {
+      return await message.reply("Please enter a valid mathematical operation.");
+    }
+    
+    const result = new Function("return " + cleanEquation)();
+    
+    if (cleanEquation.includes('/') && cleanEquation.split('/').some(part => part === '0')) {
+      return message.reply("Cannot divide by zero.");
+    }
+    
+    if (cleanEquation.split(/[-+%*/]/).length <= 2) {
+      const [num1, operator, num2] = cleanEquation.match(/\d+|[-+%*/]/g);
+      return await message.reply(num1 + " " + operator + " " + num2 + " = " + result);
+    } else {
+      return await message.reply("Result: " + result);
+    }
+  } catch (error) {
+    return await message.error(error + "\n\ncommand: calc", error);
+  }
+});
+
+// ==================== DATE TIME FUNCTION ====================
+async function getDateTime() {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const time = now.toLocaleTimeString();
+  return { date: date, time: time };
+}
+
+// ==================== REPO COMMAND ====================
+smd({
+  pattern: "repo",
+  alias: ["git", 'sc', "script"],
+  desc: "Sends info about repo",
+  category: "general",
+  filename: __filename
+}, async (message) => {
+  try {
+    let { data: repoData } = await axios.get("https://api.github.com/repos/efeurhobobullish/Empire-Md");
+    let repoInfo = (
+      "\nI'm Empire-Md. A whatsApp chuddy buddy bot with rich features, Created By *" + 
+      Config.ownername + "*. 🔰\n\n" +
+      "  *❲❒❳ Stars:* " + (repoData?.["stargazers_count"] || '120+') + " stars\n" +
+      "  *❲❒❳ Forks:* " + (repoData?.["forks_count"] || "1000+") + " forks\n" +
+      "  *❲❒❳ Author:* Empire Tech Labs\n" +
+      "  *❲❒❳ Create:* " + (repoData?.['created_at'] || "undefined") + "\n" +
+      "  *❲❒❳ Repo:* _https://github.com/efeurhobobullish/Empire-Md_\n" +
+      "  *❲❒❳ Scan:* _" + scan + "_\n\n" +
+      "  *❲❒❳ Visit For Tutorial* _https://www.youtube.com/@only_one_empire_\n" +
+      (Config.caption ? "\n\n" + Config.caption : '')
+    ).trim();
+    
+    return await message.sendUi(message.jid, { caption: repoInfo });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: repo", error);
+  }
+});
+
+// ==================== STATUS COMMAND ====================
+smd({
+  pattern: 'status',
+  alias: ["about", "info"],
+  desc: "To check bot status",
+  category: "general",
+  filename: __filename
+}, async (message) => {
+  try {
+    const timestampe = speed();
+    const latensie = speed() - timestampe;
+    let statusInfo = (
+      " 🔰 *I am " + Config.botname + "* 🔰\n" +
+      "  *❲❒❳ Description:* A WhatsApp bot with rich features, Created By *" + Config.ownername + "*.\n\n" +
+      "  *❲❒❳ Speed:* " + latensie.toFixed(4) + " ms\n" +
+      "  *❲❒❳ Uptime:* " + runtime(process.uptime()) + "\n" +
+      "  *❲❒❳ Version:* " + Config.VERSION + "\n" +
+      "  *❲❒❳ Owner:*  " + Config.ownername + "\n\n" +
+      "  *❲❒❳ Support:* _" + gurl + "_ \n" +
+      (Config.caption ? "\n\n" + Config.caption : '')
+    ).trim();
+    
+    return await message.bot.sendUi(message.jid, { caption: statusInfo });
+  } catch {}
+});
+
+// ==================== CPU COMMAND ====================
+smd({
+  pattern: 'cpu',
+  desc: "To check bot status",
+  category: "general",
+  filename: __filename
+}, async (message) => {
+  try {
+    const memoryUsage = process.memoryUsage();
+    const cpus = os.cpus().map(cpu => {
+      cpu.total = Object.keys(cpu.times).reduce((last, type) => last + cpu.times[type], 0);
+      return cpu;
+    });
+    
+    const totalCpu = cpus.reduce((last, cpu, index, { length }) => {
+      last.total += cpu.total;
+      last.speed += cpu.speed / length;
+      last.times.user += cpu.times.user;
+      last.times.nice += cpu.times.nice;
+      last.times.sys += cpu.times.sys;
+      last.times.idle += cpu.times.idle;
+      last.times.irq += cpu.times.irq;
+      return last;
+    }, {
+      speed: 0,
+      total: 0,
+      times: {
+        user: 0,
+        nice: 0,
+        sys: 0,
+        idle: 0,
+        irq: 0
+      }
+    });
+    
+    const timestampe = speed();
+    const latensie = speed() - timestampe;
+    const startTime = speed();
+    const endTime = speed();
+    
+    respon = (
+      "*❲❒❳ " + Config.botname + " Server Info ❲❒❳*\n\n" +
+      "  *❲❒❳ Runtime:* " + runtime(process.uptime()) + "\n" +
+      "  *❲❒❳ Speed:* " + latensie.toFixed(3) + '/' + (endTime - startTime).toFixed(3) + " ms\n" +
+      "  *❲❒❳ RAM:* " + formatp(os.totalmem() - os.freemem()) + " / " + formatp(os.totalmem()) + "\n\n" +
+      "  *❲❒❳ Memory Usage:*\n      " + 
+      Object.keys(memoryUsage).map((key, i, arr) => 
+        key.padEnd(Math.max(...arr.map(k => k.length)), " ") + ": " + formatp(memoryUsage[key])
+      ).join("\n      ") + "\n\n" +
+      (cpus[0] ? 
+        "  *❲❒❳ Total CPU Usage:*\n  *" + cpus[0].model.trim() + " (" + totalCpu.speed + " MHZ)*\n      " + 
+        Object.keys(totalCpu.times).map(type => 
+          '-' + (type + '').padEnd(6) + ": " + (100 * totalCpu.times[type] / totalCpu.total).toFixed(2) + '%'
+        ).join("\n      ") + "\n\n" +
+        "  *❲❒❳ CPU Core Usage (" + cpus.length + " Core CPU)*\n  " + 
+        cpus.map((cpu, i) => 
+          "*Core " + (i + 1) + ": " + cpu.model.trim() + " (" + cpu.speed + " MHZ)*\n      " + 
+          Object.keys(cpu.times).map(type => 
+            '-' + (type + '').padEnd(6) + ": " + (100 * cpu.times[type] / cpu.total).toFixed(2) + '%'
+          ).join("\n      ")
+        ).join("\n\n") 
+      : '') + "\n"
+    ).trim();
+    
+    return await message.send(respon, {}, '', message);
+  } catch (error) {
+    await message.error(error + "\n\ncommand: cpu", error, "*_No responce from Server side, Sorry!!_*");
+  }
+});
+
+// ==================== ADVT COMMAND (Advertisement) ====================
+smd({
+  pattern: "advt",
+  alias: ["advertisement"],
+  category: 'general',
+  desc: "Advertise of your Message, by sending it to provided nmbr range.",
+  use: "9231844741xx,Your_text_here",
+  fromMe: true,
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let userInput = input ? input : message.reply_text;
+    if (!userInput) {
+      return await message.reply(
+        "*Advertise of your Message*\n*by sending it to provided nmbr range.*\n" +
+        prefix + "advt 9231844741xx,Your_text_here"
+      );
+    }
+    
+    const commaIndex = userInput.indexOf(',');
+    if (commaIndex === -1) {
+      return await message.send("*Invalid format. Please provide number and Message separated by a comma.*");
+    }
+    
+    let numberTemplate = '' + userInput.slice(0, commaIndex).trim();
+    let messageText = userInput.slice(commaIndex + 1).trim() + "\n\n\n" + Config.caption;
+    
+    if (!numberTemplate.includes('x')) {
+      return message.send(
+        "*You did not add x in number.*\n*Ex: " + prefix + "advt 9231844741xx,Your_Message_here*  \n " + Config.caption
+      );
+    }
+    
+    await message.send("*Sending message to given number range.!*\n*It may take some time, so wait please*");
+    
+    var prefix_num = numberTemplate.split('x')[0];
+    var suffix_num = numberTemplate.split('x')[numberTemplate.split('x').length - 1] ? numberTemplate.split('x')[numberTemplate.split('x').length - 1] : '';
+    var xCount = numberTemplate.split('x').length - 1;
+    var loopCount;
+    
+    if (xCount == 1) {
+      loopCount = 10;
+    } else if (xCount == 2) {
+      loopCount = 100;
+    } else if (xCount == 3) {
+      loopCount = 1000;
+    } else if (xCount > 3) {
+      return await message.send("*Only 3(x) are Allowed in number*");
+    }
+    
+    let sentCount = 0;
+    let sentUsers = '';
+    var lastUser = '';
+    
+    for (let i = 0; i < loopCount; i++) {
+      var checkResult = await message.bot.onWhatsApp('' + prefix_num + i + suffix_num + "@s.whatsapp.net");
+      if (checkResult[0]) {
+        lastUser = checkResult[0].jid;
+        if (sentUsers.includes(lastUser)) {
+          continue;
+        }
+        await sleep(1500);
+        await message.bot.sendMessage(lastUser, { text: messageText });
+        sentUsers = sentUsers + ',' + lastUser;
+        sentCount += 1;
+      }
+    }
+    
+    return await message.send(
+      "*_Advertisement of your Message is Done,_* \n\n" +
+      "*_Message Succesfully sent to " + sentCount + " chats_*\n" +
+      "Last_User: " + lastUser.split('@')[0] + "\n" +
+      "Search_No: " + loopCount + " number searched\n\n\n" + Config.caption
+    );
+  } catch (error) {
+    await message.error(error + "\n\ncommand: dalle", error, "*_No responce from Server side, Sorry!!_*");
+  }
+});
+
+// ==================== ANONYMOUS MESSAGE SYSTEM ====================
+const empireMdAnonyMsg = {};
+let isAnnonyMsgAlive = '';
+
+class AnonymousMsg {
+  constructor() {
+    this.id = '';
+    this.sender = '';
+    this.reciever = '';
+    this.senderMsg = '';
+    this.tellinfo = 0;
+    this.howmanyreply = 0;
+  }
+}
+
+// ==================== ANONYMSG COMMAND ====================
+smd({
+  pattern: "anonymsg",
+  alias: ["recognition", 'anonychat'],
+  desc: "Send message Annonymously",
+  category: 'general',
+  use: "<Hii, Empire Tech Labs>",
+  filename: __filename
+}, async (message, input, { smd: commandName }) => {
+  try {
+    let userInput = input ? input : message.reply_text;
+    if (!userInput) {
+      return await message.send(
+        "*provide number with msg to send Anonymously.* \n" +
+        "*Example " + (prefix + commandName) + " 923184474176,your_Message*",
+        {}, '', message
+      );
+    }
+    
+    if (message.isCreator && userInput === "info") {
+      return await message.reply(
+        isAnnonyMsgAlive == '' ? 
+        "*Theres no Anonymous Chat created yet*" : 
+        "*Anonymous Chat Recivers*\n_" + isAnnonyMsgAlive + '_'
+      );
+    }
+    
+    const commaIndex = userInput.indexOf(',');
+    if (commaIndex === -1) {
+      return await message.reply(langText("msgs", "invalid_format", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let targetNumber = userInput.slice(0, commaIndex).trim() + "@s.whatsapp.net";
+    let messageContent = userInput.slice(commaIndex + 1).trim();
+    let parsedNumbers = (await parsedJid(targetNumber)) || [];
+    
+    if (parsedNumbers[0]) {
+      const { date: currentDate, time: currentTime } = await getDateTime();
+      const msgId = "anony-msg-" + Math.floor(100000 + Math.random() * 900000);
+      
+      empireMdAnonyMsg[msgId] = new AnonymousMsg();
+      let anonyMsg = empireMdAnonyMsg[msgId];
+      anonyMsg.id = msgId;
+      anonyMsg.sender = message.sender;
+      anonyMsg.reciever = parsedNumbers[0];
+      anonyMsg.msgStatus = true;
+      anonyMsg.senderMsg = message;
+      
+      messageContent = "*ᴇᴍᴘɪʀᴇ-ᴍᴅ • ᴀɴɴᴏɴʏᴍᴏᴜs ᴍsɢ*\n\n" +
+        "*Msg_Id:* " + anonyMsg.id + "\n" +
+        "*Date:* _" + currentDate + "_\n" +
+        "*Time:* _" + currentTime + "_\n\n" +
+        "*Message:* " + messageContent + "\n\n\n" + Config.caption;
+      
+      isAnnonyMsgAlive = isAnnonyMsgAlive + ',' + anonyMsg.reciever;
+      
+      await message.bot.sendMessage(anonyMsg.reciever, { text: messageContent });
+      return await message.reply(langText("msgs", "anonymous_sent", {}, message.userLang || global.currentUserLang));
+    } else {
+      return await message.reply(langText("msgs", "invalid_number", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: " + commandName, error, "*_Can't send annonymously message yet, Sorry!!_*");
+  }
+});
+
+// ==================== ANONYMOUS MESSAGE REPLY HANDLER ====================
+smd({
+  on: "text"
+}, async (message) => {
+  try {
+    if (message.quoted && message.reply_text && isAnnonyMsgAlive.includes(message.sender) && message.text.length > 2) {
+      const replyLines = message.reply_text.split("\n");
+      if (replyLines.length < 3) {
+        return;
+      }
+      
+      if (message.reply_text.includes("ᴇᴍᴘɪʀᴇ-ᴍᴅ • ᴀɴɴᴏɴʏᴍᴏᴜs ᴍsɢ") && 
+          replyLines[0].includes("ᴇᴍᴘɪʀᴇ-ᴍᴅ • ᴀɴɴᴏɴʏᴍᴏᴜs ᴍsɢ") && 
+          replyLines[2].includes('Msg_Id')) {
+        
+        let msgId = replyLines[2].replace(/[*_]/g, '').replace('Msg_Id:', '').trim();
+        let anonyMsg = empireMdAnonyMsg[msgId];
+        
+        if (!anonyMsg) {
+          return;
+        }
+        
+        try {
+          if (anonyMsg) {
+            let command = message.text.split(',')[0].trim();
+            if (command.toLowerCase().startsWith("reply")) {
+              anonyMsg.howmanyreply += 1;
+              const commaIndex = message.text.indexOf(',');
+              
+              let replyMessage = "*ᴇᴍᴘɪʀᴇ-ᴍᴅ • ʏᴏᴜʀ ᴀɴᴏɴʏ-ᴍsɢ ʀᴇᴘʟʏ*\n\n" +
+                "*_From @" + anonyMsg.reciever.split('@')[0] + "_*\n" +
+                "*_Msg_Id: " + anonyMsg.id + "_*\n\n" +
+                "*Message:* " + message.text.slice(commaIndex + 1).trim() + "\n\n\n\n" + Config.caption;
+              
+              if (anonyMsg.howmanyreply >= 2) {
+                isAnnonyMsgAlive = isAnnonyMsgAlive.replace(',' + message.sender, '');
+              }
+              
+              await message.bot.sendMessage(anonyMsg.sender, {
+                text: replyMessage,
+                mentions: [anonyMsg.reciever]
+              }, {
+                quoted: anonyMsg.senderMsg
+              });
+              
+              if (anonyMsg.howmanyreply >= 2) {
+                isAnnonyMsgAlive = isAnnonyMsgAlive.replace(',' + message.sender, '');
+                delete empireMdAnonyMsg[msgId];
+              }
+              
+              return await message.reply(
+                "*_Your Message succesfully deliver to User_* " + 
+                (anonyMsg.howmanyreply == 1 ? "\n*you can reply 1 more time*" : '') + " "
+              );
+            } else {
+              if (anonyMsg.tellinfo === 0) {
+                anonyMsg.tellinfo = 1;
+                let infoMessage = "*Basically, Its an Annonymous Message*\n\n" +
+                  "_Msg_Id: " + anonyMsg.id + "_\n" +
+                  "_this message sended by a chatbot_\n" +
+                  "_User not wants to expose itself to send that msg_\n\n\n" +
+                  "*if you wanna reply to that user,*\n" +
+                  "*Send msg by replying to above message*\n" +
+                  "*Type like:* reply, Type_your_Message_Here\n" +
+                  "*Example:* reply, Can you text me from your number\n\n\n" + Config.caption;
+                
+                message.bot.sendMessage(anonyMsg.reciever, { text: infoMessage }, { quoted: message });
+              } else if (anonyMsg.tellinfo === 1) {
+                anonyMsg.tellinfo = 2;
+                message.reply(langText("msgs", "reply_format", {}, message.userLang || global.currentUserLang));
+              }
+            }
+          }
+        } catch (error) {
+          console.log("error : ", error);
+        }
+      }
+    }
+  } catch {}
+});
+
+// Extracted aitts command to plugins/ai.smd
+
+// ==================== HELP COMMAND ====================
+smd({
+  cmdname: "help",
+  alias: ['categories', "ctgry", "category"],
+  desc: "category list",
+  category: "general"
+}, async (message, input) => {
+  try {
+    // If a specific command is provided, show its details
+    if (input.split(" ")[0]) {
+      let commandDetails = [];
+      const foundCommand = commands.find(cmd => cmd.pattern === input.split(" ")[0].toLowerCase());
+      
+      if (foundCommand) {
+        commandDetails.push("*🍁Command:* " + foundCommand.pattern);
+        if (foundCommand.category) {
+          commandDetails.push("*🧩Category:* " + foundCommand.category);
+        }
+        if (foundCommand.alias && foundCommand.alias[0]) {
+          commandDetails.push("*🧩Alias:* " + foundCommand.alias.join(", "));
+        }
+        if (foundCommand.desc) {
+          commandDetails.push("*🧩Description:* " + foundCommand.desc);
+        }
+        if (foundCommand.use) {
+          commandDetails.push("*〽️Usage:*\n ```" + prefix + foundCommand.pattern + " " + foundCommand.use + "```");
+        }
+        await message.reply(commandDetails.join("\n"));
+      }
+    }
+
+    // Build category list
+    const categorizedCommands = {};
+    commands.map(async (cmd, index) => {
+      if (cmd.dontAddCommandList === false && cmd.pattern !== undefined) {
+        if (!categorizedCommands[cmd.category]) {
+          categorizedCommands[cmd.category] = [];
+        }
+        categorizedCommands[cmd.category].push(cmd.pattern);
+      }
+    });
+
+    let randomNumber = Math.round(Math.random());
+    let menuTitle = randomNumber === 0 ? "MENU" : "COMMANDS";
+    
+    let outputText = "┏━━━━━━━━━━━━━━━━━━━━━━━━\n┃\t *EMPIRE-MD_" + menuTitle + "_LIST* \n┗━━━━━━━━━━━━━━━━━━━━━━━━\n\n\t```Reply the number you wants to select```\n\n";
+    
+    let categoryIndex = 1;
+    let commandCounter = 0;
+    
+    // Sort commands within each category
+    for (const cat in categorizedCommands) {
+      categorizedCommands[cat].sort();
+    }
+    for (const category of Object.keys(categorizedCommands).sort()) {
+      commandCounter += 1;
+      
+      if (input.toLowerCase() == category.toLowerCase()) {
+        outputText = "┏━━⟪ *" + category.toUpperCase() + "* ⟫━━⦿\n\n";
+        for (const cmdPattern of categorizedCommands[category]) {
+          outputText += "┃ ✗ " + fancytext(cmdPattern, 1) + "\n";
+        }
+        outputText += "\n┗━━━━━━━━━━━━━━⦿";
+        break;
+      }
+      
+      if (commandCounter >= 10) {
+        categoryIndex += 1;
+        commandCounter = 0;
+      }
+      outputText += "\n*" + categoryIndex + '.' + commandCounter + " |" + category.toUpperCase() + " " + menuTitle + "*\n";
+    }
+    
+    outputText += "\n\n" + Config.caption;
+    return await message.sendUi(message.jid, { caption: outputText });
+  } catch (error) {
+    await message.error(error + "\nCommand:help", error);
+  }
+});
+
+// ==================== MENUS COMMAND ====================
+smd({
+  pattern: "menus",
+  type: "MENU list",
+  info: "general",
+  dontAddCommandList: true
+}, async (message) => {
+  try {
+    let menuText = ("\n*🦄 ᴜᴘ ᴛɪᴍᴇ :* " + runtime(process.uptime()) + 
+      "\n*🍁 ᴛᴏᴅᴀʏ ɪs :* " + message.date + 
+      "\n*🎗 ɴᴏᴡ ᴛɪᴍᴇ :* " + message.time + 
+      "\n\n➮Fᴏᴜɴᴅᴇʀ- Empire Tech Labs𝛁\n➮Oᴡɴᴇʀ - " + Config.ownername + 
+      "\n➮Nᴜᴍ - " + owner.split(',')[0] + 
+      "\n➮Mᴇᴍᴏ - " + formatp(os.totalmem() - os.freemem()) + '/' + formatp(os.totalmem()) + 
+      "\n\n *🧑‍💻 :*  Eᴍᴘɪʀᴇ-Mᴜʟᴛɪ¯ᴅᴇᴠɪᴄᴇ ɪs ɴᴏᴡ Aᴠᴀɪʟᴀʙʟᴇ\n\n" + 
+      readmore + 
+      "\n╭──❰ *ALL MENU* ❱\n│🏮 Lɪꜱᴛ\n│🏮 Cᴀᴛᴇɢᴏʀʏ\n│🏮 Hᴇʟᴘ\n│🏮 Aʟɪᴠᴇ\n│🏮 Uᴘᴛɪᴍᴇ\n│🏮 Wᴇᴀᴛʜᴇʀ\n│🏮 Lɪɴᴋ\n│🏮 Cᴘᴜ\n│🏮 Rᴇᴘᴏꜱɪᴛᴏʀʏ\n╰─────────────⦁").trim();
+    
+    return await message.bot.sendUi(message.from, { caption: menuText });
+  } catch (error) {
+    await message.error(error + "\nCommand:menus", error);
+  }
+});
+
+// ==================== SETCMD COMMAND (Set Custom Command) ====================
+empireMd.cmd({
+  pattern: "setcmd",
+  desc: "To check ping",
+  category: "general",
+  fromMe: true,
+  filename: __filename
+}, async (message, input, { Void }) => {
+  try {
+    if (!input) {
+      return await message.send("*_Please provide cmd name by replying a Sticker_*");
+    }
+
+    let parts = input.split(',');
+    var newCommandName;
+    var targetCommand;
+    let isStickerCommand = false;
+
+    if (message.quoted) {
+      let quotedType = message.quoted.mtype;
+      if (quotedType == "stickerMessage" && input) {
+        isStickerCommand = true;
+        targetCommand = input.split(" ")[0];
+        newCommandName = stickerCmdKey(message.quoted.msg.fileSha256);
+      }
+    }
+
+    if (!isStickerCommand && parts.length > 1) {
+      newCommandName = parts[0].trim().toLowerCase();
+      targetCommand = parts[1].trim().toLowerCase();
+    } else if (!isStickerCommand) {
+      return await message.send("*_Uhh Dear, Give Cmd With New Name_*\n*Eg: _.setcmd New_Name, Cmd_Name_*");
+    }
+
+    if (newCommandName.length < 1) {
+      return await message.reply(langText("msgs", "provide_cmd_name", {}, message.userLang || global.currentUserLang));
+    }
+
+    if (global.setCmdAlias[newCommandName]) {
+      return await message.send("*_\"" + (isStickerCommand ? "Given Sticker" : newCommandName) + 
+        "\" Already set for \"" + global.setCmdAlias[newCommandName] + 
+        "\" Cmd, Please try another " + (isStickerCommand ? 'Sticker' : "Name") + '_*');
+    }
+
+    const foundCommand = empireMd.commands.find(cmd => cmd.pattern === targetCommand) || 
+                         empireMd.commands.find(cmd => cmd.alias && cmd.alias.includes(targetCommand));
+
+    if (foundCommand) {
+      global.setCmdAlias[newCommandName] = foundCommand.pattern;
+      await saveSetCmdAlias(Void);
+      return await message.send("*_Cmd \"" + global.setCmdAlias[newCommandName] +
+        "\" Succesfully set to \"" + (isStickerCommand ? "Sticker" : newCommandName) +
+        "\"._*\n*_Saved to database — survives bot restart._*");
+    } else {
+      return await message.send("*_Provided Cmd( " + targetCommand + 
+        ") not found in bot cmds. Please Provide Valid cmd Name_*");
+    }
+  } catch (error) {
+    await message.error(error + "\nCommand:setcmd", error);
+  }
+});
+
+// ==================== DELCMD COMMAND (Delete Custom Command) ====================
+empireMd.cmd({
+  pattern: "delcmd",
+  desc: "To check ping",
+  category: 'general',
+  fromMe: true,
+  filename: __filename
+}, async (message, input, { Void }) => {
+  try {
+    let commandName = input ? input.split(" ")[0].trim().toLowerCase() : '';
+    let isStickerCommand = false;
+
+    if (message.quoted) {
+      if (message.quoted.mtype == "stickerMessage") {
+        isStickerCommand = true;
+        commandName = stickerCmdKey(message.quoted.msg.fileSha256);
+      } else {
+        if (!input) {
+          return await message.send("*_Please reply to a Sticker that set for a Cmd_*");
+        }
+      }
+    } else {
+      if (!input) {
+        return await message.send("*_Uhh Dear, provide Name that set to a cmd_*\n*Eg: _.delcmd Cmd_Name_*");
+      }
+    }
+
+    if (global.setCmdAlias[commandName]) {
+      await message.send("*_\"" + (isStickerCommand ? "Given Sticker" : commandName) +
+        "\" deleted Succesfully at \"" + global.setCmdAlias[commandName] + "\" cmd_*");
+      delete global.setCmdAlias[commandName];
+      await saveSetCmdAlias(Void);
+      return;
+    } else {
+      return await message.send("*_\"" + (isStickerCommand ? "Given Sticker" : commandName) + 
+        "\" not Set for any cmd._*\n *_Please Provide Valid " + 
+        (isStickerCommand ? "Sticker" : "cmd Name") + " to delete_*");
+    }
+  } catch (error) {
+    await message.error(error + "\nCommand:delcmd", error);
+  }
+});
+
+// ==================== PING COMMAND ====================
+empireMd.smd({
+  pattern: "ping",
+  desc: "To check ping",
+  category: "general",
+  filename: __filename
+}, async (message) => {
+  var startTime = new Date().getTime();
+  const { key: sentKey } = await message.reply(langText("general", "ping_test", {}, message.userLang || global.currentUserLang));
+  var endTime = new Date().getTime();
+  return await message.send("*Pong*\n *" + (endTime - startTime) + " ms* ", { edit: sentKey }, '', message);
+});
+
+// ==================== UPTIME COMMAND ====================
+empireMd.cmd({
+  pattern: "uptime",
+  alias: ["runtime"],
+  desc: "Tells runtime/uptime of bot.",
+  category: "misc",
+  filename: __filename
+}, async (message) => {
+  try {
+    message.reply(langText("general", "uptime", { title: tlang().title, time: runtime(process.uptime()) }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand : uptime", error, false);
+  }
+});
+
+// ==================== MENU COMMAND ====================
+empireMd.cmd({
+  cmdname: "menu",
+  desc: "Help list",
+  type: "general",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    const { commands: cmdList } = require("../lib");
+
+    // If a specific command is provided, show its details
+    if (input.split(" ")[0]) {
+      let commandDetails = [];
+      const foundCommand = cmdList.find(cmd => cmd.pattern === input.split(" ")[0].toLowerCase());
+      
+      if (foundCommand) {
+        commandDetails.push("*🍁Command:* " + foundCommand.pattern);
+        if (foundCommand.category) {
+          commandDetails.push("*🧩Category:* " + foundCommand.category);
+        }
+        if (foundCommand.alias && foundCommand.alias[0]) {
+          commandDetails.push("*🧩Alias:* " + foundCommand.alias.join(", "));
+        }
+        if (foundCommand.desc) {
+          commandDetails.push("*🧩Description:* " + foundCommand.desc);
+        }
+        if (foundCommand.use) {
+          commandDetails.push("*〽️Usa:*\n ```" + prefix + foundCommand.pattern + " " + foundCommand.use + "```");
+        }
+        if (foundCommand.usage) {
+          commandDetails.push("*〽️Usage:*\n ```" + foundCommand.usage + "```");
+        }
+        await message.reply(commandDetails.join("\n"));
+      }
+    }
+
+    // Menu style variables
+    var menuHeader;
+    var menuItemPrefix;
+    var menuFooter;
+    var categoryHeader;
+    var categoryTitleSuffix;
+    var commandSeparator;
+    var categoryFooter;
+
+    let menuStyle = 0;
+    if (Config.menu === '') {
+      menuStyle = Math.floor(Math.random() * 4) + 1;
+    }
+
+    // Style 1: Aztec
+    if (menuStyle == 1 || Config.menu.trim().startsWith('1') || Config.menu.toLowerCase().includes('aztec')) {
+      menuHeader = "┏━━⟪ *" + Config.botname + "* ⟫━━⦿";
+      menuItemPrefix = "┃ ✗";
+      menuFooter = "┗━━━━━━━━━━━━━━━⦿";
+      categoryHeader = '┌──『';
+      categoryTitleSuffix = "』──❖\n";
+      commandSeparator = " | ";
+      categoryFooter = "\n└──────────────◉";
+    }
+    // Style 2: a17
+    else if (menuStyle == 2 || Config.menu.trim().startsWith('2') || Config.menu.toLowerCase().includes("a17")) {
+      menuHeader = "┌───═[ *" + Config.botname + "* ]═──▸\n│╭────────────···▸\n┴│▸";
+      menuItemPrefix = "⬡│▸";
+      menuFooter = "┬│▸\n│╰─────────────···▸\n└───────────────···▸";
+      categoryHeader = '┌───〈';
+      categoryTitleSuffix = "〉───◆\n│╭─────────────···▸\n┴│▸";
+      commandSeparator = "⬡│▸ ";
+      categoryFooter = "┬│▸\n│╰────────────···▸▸\n└───────────────···▸";
+    }
+    // Style 3: Default
+    else {
+      menuHeader = "╭────《  " + Config.botname + "  》────⊷\n│ ╭──────✧❁✧──────◆";
+      menuItemPrefix = "│ │";
+      menuFooter = "│ ╰──────✧❁✧──────◆\n╰══════════════════⊷";
+      categoryHeader = '╭────❏';
+      categoryTitleSuffix = '❏';
+      commandSeparator = '│';
+      categoryFooter = "╰━━━━━━━━━━━━━━──⊷";
+    }
+
+    // Build categorized commands
+    const categorizedCommands = {};
+    cmdList.map(async (cmd, index) => {
+      if (cmd.dontAddCommandList === false && cmd.pattern !== undefined) {
+        if (!categorizedCommands[cmd.category]) {
+          categorizedCommands[cmd.category] = [];
+        }
+        categorizedCommands[cmd.category].push(cmd.pattern);
+      }
+    });
+
+    const currentTime = message.time;
+    const currentDate = message.date;
+
+    let menuText = menuHeader + "\n" + 
+      menuItemPrefix + " Theme:- " + tlang().title + "\n" + 
+      menuItemPrefix + " Owner:- " + Config.ownername + "\n" + 
+      menuItemPrefix + " Plugins:- " + cmdList.length + "\n" + 
+      menuItemPrefix + " Uptime:- " + runtime(process.uptime()) + "\n" + 
+      menuItemPrefix + " Mem:- " + formatp(os.totalmem() - os.freemem()) + '/' + formatp(os.totalmem()) + "\n" + 
+      menuItemPrefix + " Time:- " + currentTime + "\n" + 
+      menuItemPrefix + " Date:- " + currentDate + "\n" + 
+      menuFooter + "\n\n";
+
+    // Sort commands within each category
+    for (const cat in categorizedCommands) {
+      categorizedCommands[cat].sort();
+    }
+    for (const category of Object.keys(categorizedCommands).sort()) {
+      menuText += categoryHeader + " *" + tiny(category) + "* " + categoryTitleSuffix + "\n";
+      
+      if (input.toLowerCase() == category.toLowerCase()) {
+        menuText = categoryHeader + " *" + tiny(category) + "* " + categoryTitleSuffix + "\n";
+        for (const cmdPattern of categorizedCommands[category]) {
+          menuText += commandSeparator + " " + fancytext(cmdPattern, 1) + "\n";
+        }
+        menuText += categoryFooter + "\n";
+        break;
+      } else {
+        for (const cmdPattern of categorizedCommands[category]) {
+          menuText += commandSeparator + " " + fancytext(cmdPattern, 1) + "\n";
+        }
+        menuText += categoryFooter + "\n";
+      }
+    }
+
+    menuText += Config.caption;
+    let menuData = { caption: menuText };
+    return await message.sendUi(message.chat, menuData, message);
+  } catch (error) {
+    await message.error(error + "\nCommand:menu", error);
+  }
+});
+
+// ==================== LIST COMMAND ====================
+empireMd.cmd({
+  pattern: "list",
+  desc: "list menu",
+  category: "general",
+  react: '🥀'
+}, async (message) => {
+  try {
+    const { commands: cmdList } = require("../lib");
+    
+    let listText = "\n  ╭━━ *" + Config.botname + "* 〙────⊷     \n" + 
+      "  ┃ ✭ Theme: " + tlang().title + "\n" + 
+      "  ┃ ✭ Prefix: " + prefix + "\n" + 
+      "  ┃ ✭ Owner: " + Config.ownername + "\n" + 
+      "  ┃ ✭ Commands: " + cmdList.length + "\n" + 
+      "  ┃ ✭ Uptime: " + runtime(process.uptime()) + "\n" + 
+      "  ┃ ✭ Mem: " + formatp(os.totalmem() - os.freemem()) + '/' + formatp(os.totalmem()) + "\n" + 
+      "  ╰━━━━━━━━━━━━━━⊷\n";
+
+    for (let i = 0; i < cmdList.length; i++) {
+      if (cmdList[i].pattern == undefined) {
+        continue;
+      }
+      listText += '*' + (i + 1) + " " + fancytext(cmdList[i].pattern, 1) + "*\n";
+      listText += "  " + fancytext(cmdList[i].desc, 1) + "\n";
+    }
+
+    return await message.sendUi(message.chat, { caption: listText + Config.caption });
+  } catch (error) {
+    await message.error(error + "\nCommand:list", error);
+  }
+});
+
+// ==================== OWNER COMMAND ====================
+empireMd.smd({
+  pattern: "owner",
+  desc: "To check ping",
+  category: 'general',
+  filename: __filename
+}, async (message) => {
+  try {
+    const vcard = "BEGIN:VCARD\nVERSION:3.0\nFN:" + Config.ownername + "\n" + 
+      "ORG:;\n" + 
+      'TEL;type=CELL;type=VOICE;waid=' + global.owner?.split(',')[0] + ':+' + global.owner?.split(',')[0] + "\n" + 
+      "END:VCARD";
+    
+    let contactMessage = {
+      contacts: {
+        displayName: Config.ownername,
+        contacts: [{ vcard: vcard }]
+      },
+      contextInfo: {
+        externalAdReply: {
+          title: Config.ownername,
+          body: "Touch here.",
+          renderLargerThumbnail: true,
+          thumbnailUrl: '',
+          thumbnail: log0,
+          mediaType: 1,
+          mediaUrl: '',
+          sourceUrl: 'https://wa.me/+' + global.owner?.split(',')[0] + '?text=Hii+' + Config.ownername
+        }
+      }
+    };
+
+    return await message.sendMessage(message.jid, contactMessage, { quoted: message });
+  } catch (error) {
+    await message.error(error + "\nCommand:owner", error);
+  }
+});
+
+// ==================== TRANSLATE COMMAND ====================
+empireMd.cmd({
+  pattern: "trt",
+  alias: ["translate"],
+  category: "general",
+  filename: __filename,
+  use: "< text >",
+  desc: "Translate's given text in desird language."
+}, async (message, input) => {
+  try {
+    let targetLanguage = input ? input.split(" ")[0].toLowerCase() : 'en';
+    
+    if (!message.reply_text) {
+      var textToTranslate = input.replace(targetLanguage, '')?.trim() || false;
+    } else {
+      var textToTranslate = message.reply_text;
+    }
+
+    if (!textToTranslate) {
+      return await message.reply(langText("general", "translate_example", { prefix }, message.userLang || global.currentUserLang));
+    }
+
+    var translationResult = await translatte(textToTranslate, { from: "auto", to: targetLanguage });
+
+    if ("text" in translationResult) {
+      return await message.reply(translationResult.text);
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand trt", error);
+  }
+});
+
+// ==================== FILE COMMAND ====================
+const readDirectory = (directoryPath) => {
+  return new Promise((resolve, reject) => {
+    fs.readdir(directoryPath, (error, files) => {
+      if (error) {
+        reject("Error reading directory");
+      } else {
+        resolve(files);
+      }
+    });
+  });
+};
+
+empireMd.cmd({
+  pattern: 'file',
+  desc: "to get extact name where that command is in repo.\nSo user can edit that.",
+  category: "general",
+  fromMe: true,
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!input) {
+      return message.reply(langText("msgs", "provide_cmd", {}, message.userLang || global.currentUserLang));
+    }
+
+    // If input starts with '.', treat as directory path
+    if (input.startsWith('.')) {
+      let fileList = "*------------- FILE MANAGER -------------*\n";
+      try {
+        const files = await readDirectory(input);
+        files.forEach(file => {
+          fileList += file + "\n";
+        });
+        await message.reply(fileList.toString());
+      } catch (error) {
+        message.reply(error);
+      }
+      return;
+    }
+
+    let commandDetails = [];
+    let searchTerm = input.split(" ")[0].toLowerCase().trim();
+
+    let foundCommand = empireMd.commands.find(cmd => cmd.pattern === searchTerm) || 
+                       empireMd.commands.find(cmd => cmd.alias && cmd.alias.includes(searchTerm));
+
+    if (!foundCommand) {
+      return await message.reply(langText("msgs", "no_cmd", {}, message.userLang || global.currentUserLang));
+    }
+
+    commandDetails.push("*🍁Command:* " + foundCommand.pattern);
+    if (foundCommand.category) {
+      commandDetails.push("*🧩Type:* " + foundCommand.category);
+    }
+    if (foundCommand.alias && foundCommand.alias[0]) {
+      commandDetails.push("*🧩Alias:* " + foundCommand.alias.join(", "));
+    }
+    if (foundCommand.desc) {
+      commandDetails.push("*✨Description:* " + foundCommand.desc);
+    }
+    if (foundCommand.use) {
+      commandDetails.push("*〽️Usa:*\n ```" + prefix + foundCommand.pattern + " " + foundCommand.use + "```");
+    }
+    if (foundCommand.usage) {
+      commandDetails.push("*〽️Usage:*\n ```" + foundCommand.usage + "```");
+    }
+    if (foundCommand.filename) {
+      commandDetails.push("*✨FileName:* " + foundCommand.filename);
+    }
+
+    try {
+      if (input.includes("function") && foundCommand["function"] && message.isEmpire && foundCommand.pattern !== 'file') {
+        commandDetails.push("*🧩Function:* " + foundCommand["function"].toString());
+      }
+    } catch {}
+
+    await message.reply(commandDetails.join("\n"));
+  } catch (error) {
+    await message.error(error + "\nCommand:file", error);
+  }
+});
+
+// ==================== EVAL COMMAND ====================
+empireMd.cmd({
+  pattern: "eval",
+  alias: ['$'],
+  category: "owner",
+  filename: __filename,
+  fromMe: true,
+  desc: "Runs js code on node server.",
+  use: "< run code >",
+  dontAddCommandList: true
+}, async (message, code, { isCreator, cmdName, Void }) => {
+  try {
+    if (!code) {
+      return message.reply(langText("general", "provide_query", {}, message.userLang || global.currentUserLang));
+    }
+
+    let result = eval("const a = async()=>{\n" + code + "\n}\na()");
+
+    if (typeof result === "object") {
+      await message.reply(JSON.stringify(result));
+    } else {
+      await message.reply(result.toString());
+    }
+  } catch (error) {
+    return await message.reply(error.toString());
+  }
+});
+
+// ==================== SHELL COMMAND ====================
+empireMd.cmd({
+  pattern: 'shell',
+  category: "owner",
+  filename: __filename,
+  fromMe: true,
+  desc: "Runs command in Heroku(server) shell.",
+  use: "<shell cmds | ls,cd >",
+  dontAddCommandList: true
+}, async (message, command) => {
+  try {
+    if (!message.isCreator) {
+      return message.reply(tlang().owner);
+    }
+    if (!command) {
+      return message.reply(langText("general", "provide_heroku_cmd", {}, message.userLang || global.currentUserLang));
+    }
+
+    exec(command, (error, stdout) => {
+      if (error) {
+        return message.reply("----" + tlang().title + "----\n\n" + error);
+      }
+      if (stdout) {
+        return message.reply('----' + tlang().title + "----\n\n" + stdout);
+      }
+    });
+  } catch (error) {
+    await message.error(error + "\n\ncommand shell", error);
+  }
+});
+
+// ==================== TEXT EVENT HANDLER (Menu Selection & Cron) ====================
+smd({
+  on: 'text'
+}, async (msg, text, { mek, body, args, botNumber, isCreator, icmd, store, budy, Empire, Void, proto }) => {
+  try {
+    // Start cron job to clean temp directory every 15 minutes
+    if (!cronStart) {
+      cron.schedule("*/15 * * * *", () => {
+        cronStart = true;
+        fs.readdir('./temp', (error, files) => {
+          if (error) {
+            return;
+          }
+          files.forEach(file => {
+            try {
+              fs.unlink('./temp/' + file);
+            } catch {}
+          });
+        });
+      });
+    }
+
+    if (!msg.reply_message || !text || !msg.isPublic) {
+      return;
+    }
+
+    const replyLines = msg.reply_message.text.split("\n");
+
+    // Handle fancy text selection by number
+    let selectedNumber = parseInt(text.split(" ")[0]);
+    if (!isNaN(selectedNumber)) {
+      if (replyLines.length > 30 && replyLines[1].includes('EMPIRE-MD_FANCY_TEXT')) {
+        var selectedLine = replyLines.find(line => line.startsWith(selectedNumber + " "));
+        try {
+          if (selectedLine) {
+            await msg.send(selectedLine.replace('' + selectedNumber, '').trim(), {}, '', msg);
+          } else {
+            '';
+          }
+        } catch {}
+      }
+    }
+
+    // Handle menu category selection by decimal number
+    let categoryNumber = parseFloat(text.split(" ")[0]);
+    if (isNaN(categoryNumber)) {
+      return;
+    }
+
+    let formattedNumber = categoryNumber.toFixed(1);
+    var matchingLine = replyLines.find(line => line.startsWith('*' + formattedNumber + " "));
+
+    if (matchingLine && (matchingLine.endsWith("COMMANDS*") || matchingLine.endsWith("MENU*"))) {
+      var categoryName = matchingLine.replace('*' + formattedNumber, '')
+        .replace('|', '')
+        .replace(/COMMANDS\*/gi, '')
+        .replace(/MENU\*/gi, '')
+        .toLowerCase();
+
+      if (categoryName.length > 0 && categoryName.length < 20) {
+        const { commands: cmdList } = require("../lib");
+        const categorizedCommands = {};
+
+        cmdList.forEach(cmd => {
+          if (!cmd.dontAddCommandList && cmd.pattern !== undefined) {
+            if (!categorizedCommands[cmd.category]) {
+              categorizedCommands[cmd.category] = [];
+            }
+            categorizedCommands[cmd.category].push({
+              command: cmd.pattern,
+              info: cmd.desc,
+              help: prefix + cmd.pattern + " " + (cmd.use ? cmd.use : '')
+            });
+          }
+        });
+
+        let categoryOutput = false;
+        for (const category in categorizedCommands) {
+          let categoryLower = '' + category.toLowerCase();
+          if (categoryName.includes(categoryLower)) {
+            categoryOutput = "┏━━━━━━━━━━━━━━━━━━━━━━━\n┃\t*EMPIRE-MD_" + 
+              category.toUpperCase() + "_COMMANDS*  \n┗━━━━━━━━━━━━━━━━━━━━━━━\n\n\n";
+            
+            categorizedCommands[category].forEach(cmdInfo => {
+              categoryOutput += "*🍁Command:* ```" + cmdInfo.command + "``` " + 
+                (cmdInfo.info ? "\n*🧩Info:* ```" + cmdInfo.info + "```" : '') + 
+                "\n*〽️Help:* ```" + cmdInfo.help + "```\n\n";
+            });
+            categoryOutput += "\n\n" + Config.caption;
+            break;
+          }
+        }
+
+        if (categoryOutput) {
+          return await msg.sendUi(msg.from, { caption: categoryOutput });
+        }
+      }
+    }
+  } catch (error) {
+    console.log("ERROR : ", error);
+  }
+});
+
+// ==================== MASTER TEXT EVENT HANDLER (Eval shortcuts) ====================
+smd({
+  on: "text"
+}, async (msg, text, { mek, body, args, botNumber, isCreator, icmd, store, budy, Empire, Void, proto }) => {
+  const { send, reply, react, sendMessage } = msg;
+
+  if (msg.isCreator) {
+    // Handle '>' prefix for synchronous eval
+    if (!Config.HANDLERS.includes('>') && msg.text.startsWith('>')) {
+      let code = budy.slice(1);
+      if (!code) {
+        return msg.reply("Provide me with a query to run Master!");
+      }
+      try {
+        let result = eval(code);
+        if (result) {
+          return msg.reply(util.format(result));
+        }
+      } catch (error) {
+        return msg.reply(util.format(error));
+      }
+    }
+    // Handle '$' prefix for async eval
+    else if (!Config.HANDLERS.includes('$') && msg.text.startsWith('$')) {
+      let code = budy.slice(1);
+      if (!code) {
+        return msg.reply("Provide me with a query to run Master!");
+      }
+      try {
+        let result = await eval("const a = async()=>{\n" + code + "\n}\na()");
+        await msg.react('🍁');
+        if (result) {
+          return await msg.reply(util.format(result));
+        }
+      } catch (error) {
+        console.log("ERROR FROM RUNNING QUERY WITH MASTER $\n", error);
+        return await msg.reply(util.format(error));
+      }
+    }
+  }
+});
+
+function formatAfkDuration(startTime = 0) {
+  const elapsed = Math.max(1, Math.floor((Date.now() - Number(startTime || 0)) / 1000));
+  return runtime(elapsed);
+}
+
+function loadAfkMap(botData = {}) {
+  if (!botData.afk) return {};
+  if (typeof botData.afk === "string") {
+    try {
+      return JSON.parse(botData.afk);
+    } catch {
+      return {};
+    }
+  }
+  return typeof botData.afk === "object" ? botData.afk : {};
+}
+
+function normalizeAfkJid(jid = "") {
+  return jid && jid.includes("@") ? jid : jid ? jid.replace(/[^0-9]/g, "") + "@s.whatsapp.net" : "";
+}
+
+async function getAfkData(botNumber) {
+  return (await bot_.findOne({ id: "bot_" + botNumber })) || (await bot_.new({ id: "bot_" + botNumber }));
+}
+
+// ==================== AFK COMMANDS ====================
+smd({
+  pattern: "afk",
+  alias: ["away"],
+  desc: "Set yourself as AFK.",
+  category: "general",
+  filename: __filename
+}, async (message, input, { botNumber }) => {
+  try {
+    const botData = await getAfkData(botNumber);
+    const afk = loadAfkMap(botData);
+    const reason = (input || "AFK").trim();
+    const botJid = normalizeAfkJid(botNumber);
+
+    afk[message.sender] = {
+      reason,
+      time: Date.now(),
+      name: message.senderName || message.pushName || message.sender.split("@")[0],
+      owner: message.sender === botJid
+    };
+
+    await bot_.updateOne({ id: "bot_" + botNumber }, { afk });
+    return await message.reply(langText("general", "afk_enabled", { reason }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: afk", error, "*Could not set AFK.*");
+  }
+});
+
+smd({
+  pattern: "unafk",
+  alias: ["back"],
+  desc: "Remove your AFK status.",
+  category: "general",
+  filename: __filename
+}, async (message, input, { botNumber }) => {
+  try {
+    const botData = await getAfkData(botNumber);
+    const afk = loadAfkMap(botData);
+    const oldAfk = afk[message.sender];
+
+    if (!oldAfk) return await message.reply(langText("general", "afk_not", {}, message.userLang || global.currentUserLang));
+
+    delete afk[message.sender];
+    await bot_.updateOne({ id: "bot_" + botNumber }, { afk });
+
+    return await message.reply(langText("general", "afk_back", { duration: formatAfkDuration(oldAfk.time) }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: unafk", error, "*Could not remove AFK.*");
+  }
+});
+
+smd({
+  on: "main",
+  filename: __filename
+}, async (message, text, { botNumber, icmd }) => {
+  try {
+    if (icmd || message.fromMe) return;
+
+    const botJid = normalizeAfkJid(botNumber);
+    const targets = new Set([...(message.mentionedJid || [])]);
+    if (message.quoted?.sender) targets.add(message.quoted.sender);
+
+    if (!message.isGroup && botJid) targets.add(botJid);
+
+    targets.delete(message.sender);
+
+    if (!targets.size) return;
+
+    const botData = await getAfkData(botNumber);
+    const afk = loadAfkMap(botData);
+    const notices = [];
+    const mentions = [];
+
+    for (const jid of targets) {
+      if (!afk[jid]) continue;
+      const isOwnerAfk = jid === botJid || afk[jid].owner;
+      mentions.push(jid);
+      notices.push(
+        (isOwnerAfk ? "*The owner is AFK*" : "*@" + jid.split("@")[0] + " is AFK*") + "\n" +
+        "*Reason:* " + (afk[jid].reason || "AFK") + "\n" +
+        "*Time:* " + formatAfkDuration(afk[jid].time)
+      );
+    }
+
+    if (notices.length) {
+      return await message.reply(notices.join("\n\n"), { mentions });
+    }
+  } catch (error) {
+    console.log("AFK main handler error:", error);
+  }
+});
+
+// ==================== ALIVE COMMAND ====================
+smd({
+  pattern: "alive",
+  desc: "Checks if bot is online, or updates alive message.",
+  category: "general",
+  filename: __filename
+}, async (message, input, { prefix, botNumber }) => {
+  try {
+    let botData = (await bot_.findOne({ id: "bot_" + botNumber })) || (await bot_.new({ id: 'bot_' + botNumber }));
+    
+    if (input) {
+      // If input is "info" or "get", show current alive settings
+      if (input.toLowerCase() === "info" || input.toLowerCase() === "get") {
+        let infoText = `*『 ALIVE SETTINGS 』*\n\n` +
+          `*Message:* ${botData.alive_text}\n` +
+          `*Media URL:* ${botData.alive_url || "Not Set"}\n` +
+          `*Media Type:* ${botData.alive_image ? "Image" : botData.alive_video ? "Video" : "None"}\n\n` +
+          `*To update alive message:* \`${prefix}alive <your_new_message>\`\n` +
+          `*To update alive image URL:* \`${prefix}aliveurl <image_url>\``;
+        return await message.reply(infoText);
+      }
+      
+      // Update alive text in database
+      await bot_.updateOne({ id: "bot_" + botNumber }, { alive_text: input });
+      return await message.reply(`*🎉 Alive message updated successfully!*\n\n*New message:* ${input}`);
+    }
+    
+    // Default: Send alive message
+    let baseText = botData.alive_text || `*ι αм σηℓιηє нσω ¢αη ι нєℓρ уσυ*`;
+    let formattedText = baseText
+      .replace(/&user/g, "@" + message.sender.split('@')[0])
+      .replace(/&uptime/g, runtime(process.uptime()))
+      .replace(/&prefix/g, prefix);
+      
+    let mentions = [message.sender];
+    
+    if (botData.alive_url && (botData.alive_image || botData.alive_video)) {
+      let type = botData.alive_image ? "image" : "video";
+      return await message.send(botData.alive_url, {
+        caption: formattedText,
+        mentions: mentions
+      }, type, message);
+    } else {
+      return await message.send(formattedText, {
+        mentions: mentions
+      }, "text", message);
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: alive", error);
+  }
+});
+
+// ==================== ALIVEURL COMMAND ====================
+smd({
+  pattern: "aliveurl",
+  desc: "Updates bot's alive media URL.",
+  category: "general",
+  fromMe: true,
+  filename: __filename
+}, async (message, input, { botNumber }) => {
+  try {
+    if (!input) {
+      return await message.reply(`*Please specify an image/video URL.*\nExample: \`.aliveurl https://example.com/image.jpg\``);
+    }
+    
+    let isVideo = /\.(mp4|gif)/gi.test(input);
+    let isImage = /\.(jpg|jpeg|png|webp)/gi.test(input) || !isVideo;
+    
+    await bot_.updateOne({ id: "bot_" + botNumber }, {
+      alive_url: input,
+      alive_image: isImage,
+      alive_video: isVideo
+    });
+    
+    return await message.reply(`*🎉 Alive media URL updated successfully!*\n\n*URL:* ${input}\n*Type:* ${isImage ? "Image" : "Video"}`);
+  } catch (error) {
+    await message.error(error + "\n\ncommand: aliveurl", error);
+  }
+});

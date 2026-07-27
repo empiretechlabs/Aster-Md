@@ -1,0 +1,956 @@
+const { tlang, smd, fetchJson, smdJson, yt, sleep, botpic, getBuffer, smdBuffer, prefix, Config, langText, tr } = require(lib_dir);
+const googleTTS = require("google-tts-api");
+const yts = require('yt-search');
+const fs = require('fs-extra');
+const axios = require('axios');
+const fetch = require('node-fetch');
+const { cmd } = require(lib_dir + '/plugins');
+
+// ==================== TELEGRAM STICKERS ====================
+smd({
+  pattern: 'tgs',
+  desc: 'Downloads telegram stickers.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<add sticker url.>'
+}, async (message, input) => {
+  try {
+    if (!input) {
+      return await message.reply("_Enter a tg sticker url_\nEg: .tgs https://t.me/addstickers/Oldboyfinal\nKeep in mind that there is a chance of ban if used frequently");
+    }
+    if (!input.includes('addstickers')) {
+      return await message.reply('Provide Valid Repositry Url');
+    }
+    let stickerSet = input.split('|')[0];
+    let setName = stickerSet.split('/addstickers/')[1];
+    let { result } = await fetchJson('https://api.telegram.org/bot7025486524:AAGNJ3lMa8610p7OAIycwLtNmF9vG8GfboM/getStickerSet?name=' + encodeURIComponent(setName) + ' ');
+    let option = input.split('|')[1] || '';
+    let infoMsg = 'Total stickers: ' + result.stickers.length + ' \nEstimated complete in: ' + result.stickers.length * 1.5 + ' seconds\nKeep in mind that there is a chance of a ban if used frequently';
+    if (result.is_animated) {
+      return await message.reply('Animated stickers are not supported');
+    } else if (option.startsWith('info')) {
+      return await message.reply(infoMsg);
+    }
+    let startIndex = parseInt(option.split(',')[0]) || 10;
+    let endIndex = parseInt(option.split(',')[1]) || 0;
+    let type = option.split(';')[1] || 'Sticker';
+    let isImage = true;
+    if (type.includes('image')) {
+      isImage = false;
+      type = 'Photo';
+    }
+    if (startIndex > result.stickers.length) startIndex = result.stickers.length;
+    if (endIndex > result.stickers.length) endIndex = result.stickers.length - 5;
+    if (endIndex > startIndex) {
+      let temp = startIndex;
+      startIndex = endIndex;
+      endIndex = temp;
+    }
+    await message.reply(infoMsg + '\nDownloading as ' + type + ' from index ' + endIndex + ' to ' + startIndex + ' : ' + stickerSet + ' _ \n\n');
+    for (endIndex; endIndex < startIndex; endIndex++) {
+      let fileData = await fetchJson('https://api.telegram.org/bot7025486524:AAGNJ3lMa8610p7OAIycwLtNmF9vG8GfboM/getFile?file_id=' + result.stickers[endIndex].file_id);
+      let fileUrl = 'https://api.telegram.org/file/bot7025486524:AAGNJ3lMa8610p7OAIycwLtNmF9vG8GfboM/' + fileData.result.file_path;
+      if (isImage) {
+        let buffer = await getBuffer(fileUrl);
+        await message.reply(buffer, { packname: Config.packname, author: 'Empire-Md' }, 'sticker');
+      } else {
+        await message.bot.sendMessage(message.chat, { image: { url: fileUrl }, caption: '*_Telegram Sticker At Index ' + (endIndex + 1) + '*_' });
+      }
+    }
+  } catch (error) {
+    await message.error(error + '_Error sending telegram stickers!!!_', error, 'error');
+  }
+});
+
+// ==================== WIKIMEDIA ====================
+smd({
+  pattern: 'wikimedia',
+  desc: 'Downloads wikimedia images.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<text|search.>'
+}, async (message, query) => {
+  try {
+    if (!query) return await message.send('*_Give Me Search Query_*');
+    let { wikimedia } = require(lib_dir);
+    let results = (await wikimedia(query)) || [];
+    if (!results || !results[0]) return await message.send('*_No Results Found!_*');
+    let limit = message.iscreator && query.split('|')[1] === 'all' ? results.length : results.length > 5 ? 5 : results.length;
+    for (let i = 0; i < limit; i++) {
+      try {
+        message.bot.sendMessage(message.chat, results[i].url, 'image ' + results[i].title + ' \n*Source: ' + results[i].source, message, {}, 'image');
+      } catch {}
+    }
+  } catch (error) {
+    await message.error(error + '_Video not Found_', error);
+  }
+});
+
+// ==================== FACEBOOK ====================
+// ==================== FACEBOOK DOWNLOADER ====================
+smd({
+  pattern: 'facebook',
+  alias: ['fb', 'fbdl', 'fbdown'],
+  desc: 'Downloads fb videos.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<add fb url.>'
+}, async (message, input) => {
+  try {
+    let fbUrl = input.split(' ')[0];
+    if (!fbUrl || !/facebook\.com|fb\.com|fb\.watch/.test(fbUrl)) {
+      return await message.send('*_Give me valid Facebook Video Link!_*\n*Example: ' + prefix + 'fb https://www.facebook.com/reel/402579285704851_*');
+    }
+
+    let response = await smdJson(
+      `https://api.princetechn.com/api/download/facebook?apikey=prince&url=${encodeURIComponent(fbUrl)}`
+    );
+
+    if (!response || response.status !== 200 || !response.success || !response.result) {
+      return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+    }
+
+    let hdVideo = response.result.hd_video || false;
+    let sdVideo = response.result.sd_video || false;
+    let videoUrl = hdVideo || sdVideo;
+    let thumbnail = response.result.thumbnail || false;
+
+    if (!videoUrl) return await message.reply(langText("msgs", "video_not_found", {}, message.userLang || global.currentUserLang));
+
+    let quality = hdVideo ? 'HD' : 'SD';
+    let caption = `*『 Fᴀᴄᴇʙᴏᴏᴋ Dᴏᴡɴʟᴏᴀᴅᴇʀ 』*\n\n` +
+      `*📌 Title:* ${response.result.title || 'No description'}\n` +
+      `*⏱️ Duration:* ${response.result.duration || 'N/A'}\n` +
+      `*🎬 Quality:* ${quality}\n\n` +
+      `${Config.caption}`;
+
+    let videoBuffer = await getBuffer(videoUrl);
+
+    return await message.bot.sendMessage(
+      message.chat,
+      {
+        video: videoBuffer,
+        caption: caption,
+        mimetype: 'video/mp4'
+      },
+      { quoted: message }
+    );
+
+  } catch (error) {
+    return message.error(error + '\n\ncommand: facebook', error, '*_Video Not Found!_*');
+  }
+});
+
+// ==================== TIKTOK DOWNLOADER ====================
+smd({
+  pattern: 'tiktok',
+  alias: ['tt', 'ttdl'],
+  desc: 'Downloads Tiktok Videos.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<add tiktok url.>'
+}, async (message, url) => {
+  try {
+    if (!url) {
+      return await message.reply(langText("downloader", "tiktok_url", { prefix }, message.userLang || global.currentUserLang));
+    }
+    let tiktokUrl = url.split(' ')[0];
+    if (!/tiktok/.test(tiktokUrl)) {
+      return await message.reply(langText("downloader", "invalid_url", {}, message.userLang || global.currentUserLang));
+    }
+
+    let response = await smdJson(
+      `https://api.princetechn.com/api/download/tiktok?apikey=prince&url=${encodeURIComponent(tiktokUrl)}`
+    );
+
+    if (!response || response.status !== 200 || !response.success || !response.result) {
+      return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+    }
+
+    let videoUrl = response.result.video || false;
+    if (!videoUrl) return await message.reply(langText("msgs", "video_not_found", {}, message.userLang || global.currentUserLang));
+
+    let caption = `*『 TɪᴋTᴏᴋ Dᴏᴡɴʟᴏᴀᴅᴇʀ 』*\n\n` +
+      `*📌 Title:* ${response.result.title || 'No title'}\n` +
+      `*⏱️ Duration:* ${response.result.duration || '0'}s\n` +
+      `*👤 Author:* ${response.result.author?.name || 'Unknown'}\n` +
+      `*🆔 ID:* ${response.result.id || 'N/A'}\n\n` +
+      `${Config.caption}`;
+
+    let videoBuffer = await getBuffer(videoUrl);
+
+    return await message.bot.sendMessage(
+      message.chat,
+      {
+        video: videoBuffer,
+        caption: caption,
+        mimetype: 'video/mp4'
+      },
+      { quoted: message }
+    );
+
+  } catch (error) {
+    return message.error(error + '\n\ncommand: tiktok', error, '*_Video not Found_*');
+  }
+});
+
+// ==================== INSTAGRAM DOWNLOADER ====================
+smd({
+  pattern: 'instagram',
+  alias: ['ig', 'igdl', 'insta'],
+  desc: 'Downloads Instagram videos/posts.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<add instagram url.>'
+}, async (message, url) => {
+  try {
+    if (!url) {
+      return await message.reply(langText("downloader", "instagram_url", { prefix }, message.userLang || global.currentUserLang));
+    }
+    let instagramUrl = url.split(' ')[0];
+    if (!/instagram/.test(instagramUrl)) {
+      return await message.reply(langText("downloader", "invalid_url", {}, message.userLang || global.currentUserLang));
+    }
+    let response = await smdJson(api_smd + '/api/instagram?url=' + instagramUrl);
+    if (!response || !response.status || !response.result) {
+      return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+    }
+    let mediaUrl = response.result.url || response.result.video || response.result.image || false;
+    if (!mediaUrl) return await message.reply(langText("msgs", "media_not_found", {}, message.userLang || global.currentUserLang));
+    let type = response.result.type === 'image' ? 'image' : 'video';
+    let mediaBuffer = await getBuffer(mediaUrl);
+    return await message.bot.sendMessage(message.chat, { [type]: mediaBuffer, caption: Config.caption, mimetype: type === 'video' ? 'video/mp4' : 'image/jpeg' }, { quoted: message });
+  } catch (error) {
+    return message.error(error + '\n\ncommand: instagram', error, '*_Media not Found_*');
+  }
+});
+
+// ==================== TWITTER DOWNLOADER ====================
+smd({
+  pattern: 'twitter',
+  alias: ['tw', 'twdl', 'twt'],
+  desc: 'Downloads Twitter videos/images.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<add twitter url.>'
+}, async (message, url) => {
+  try {
+    if (!url) {
+      return await message.reply(langText("downloader", "twitter_url", { prefix }, message.userLang || global.currentUserLang));
+    }
+    let twitterUrl = url.split(' ')[0];
+    if (!/twitter\.com|x\.com/.test(twitterUrl)) {
+      return await message.reply(langText("downloader", "invalid_url", {}, message.userLang || global.currentUserLang));
+    }
+    let response = await smdJson(api_smd + '/api/twitter?url=' + twitterUrl);
+    if (!response || !response.status || !response.result) {
+      return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+    }
+    let mediaUrl = response.result.url || response.result.video || response.result.image || false;
+    if (!mediaUrl) return await message.reply(langText("msgs", "media_not_found", {}, message.userLang || global.currentUserLang));
+    let type = response.result.type === 'image' ? 'image' : 'video';
+    let mediaBuffer = await getBuffer(mediaUrl);
+    return await message.bot.sendMessage(message.chat, { [type]: mediaBuffer, caption: Config.caption, mimetype: type === 'video' ? 'video/mp4' : 'image/jpeg' }, { quoted: message });
+  } catch (error) {
+    return message.error(error + '\n\ncommand: twitter', error, '*_Media not Found_*');
+  }
+});
+
+// ==================== DAILYMOTION DOWNLOADER ====================
+smd({
+  pattern: 'dailymotion',
+  alias: ['dm', 'dmdl'],
+  desc: 'Downloads Dailymotion videos.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<add dailymotion url.>'
+}, async (message, url) => {
+  try {
+    if (!url) {
+      return await message.reply(langText("downloader", "dailymotion_url", { prefix }, message.userLang || global.currentUserLang));
+    }
+    let dmUrl = url.split(' ')[0];
+    if (!/dailymotion/.test(dmUrl)) return await message.reply(langText("downloader", "invalid_url", {}, message.userLang || global.currentUserLang));
+    let response = await smdJson('https://empiretech-api.hf.space/api/download/dailymotion?apikey=empire&url=' + dmUrl);
+    if (!response || !response.success) return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+    let downloads = response.result?.downloads || [];
+    if (!downloads.length) return await message.reply(langText("msgs", "video_not_found", {}, message.userLang || global.currentUserLang));
+    let videoUrl = downloads[0].url;
+    let videoBuffer = await getBuffer(videoUrl);
+    return await message.bot.sendMessage(message.chat, { video: videoBuffer, caption: response.result.title || Config.caption, mimetype: 'video/mp4' }, { quoted: message });
+  } catch (error) {
+    return message.error(error + '\n\ncommand: dailymotion', error, '*_Video not Found_*');
+  }
+});
+
+// ==================== GITCLONE ====================
+smd({
+  pattern: 'gitclone',
+  desc: 'Downloads git repositories.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<repo url>'
+}, async (message, repoUrl) => {
+  try {
+    if (!repoUrl) {
+      return await message.reply(langText("downloader", "provide_repo", {}, message.userLang || global.currentUserLang));
+    }
+    let gitUrl = repoUrl.split(' ')[0];
+    const gitRegex = /(?:https|git)(?::\/\/|@)github\.com[\/:]([^\/:]+)\/(.+)/i;
+    if (!gitRegex.test(gitUrl)) return await message.reply(langText("downloader", "invalid_repo", {}, message.userLang || global.currentUserLang));
+    let response = await smdJson('https://empiretech-api.hf.space/api/download/gitclone?apikey=efe123&url=' + gitUrl);
+    if (!response || !response.success) return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+    let downloadUrl = response.result?.download_url || false;
+    let fileName = response.result?.filename || 'repo.zip';
+    if (!downloadUrl) return await message.reply(langText("msgs", "not_found", {}, message.userLang || global.currentUserLang));
+    await message.bot.sendMessage(message.chat, { document: { url: downloadUrl }, fileName: fileName, mimetype: 'application/zip', caption: Config.caption }, { quoted: message });
+  } catch (error) {
+    return message.error(error + '\n\ncommand: gitclone', error, '*_File not found!!_*');
+  }
+});
+
+// ==================== MEDIAFIRE ====================
+smd({
+  pattern: 'mediafire',
+  alias: ['mf', 'mfire'],
+  desc: 'Downloads media from Mediafire.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<url of mediafire>'
+}, async (message, input) => {
+  try {
+    let mediafireUrl = input.includes('mediafire.com') ? input.split(' ')[0] : message.reply_text || '';
+    if (!mediafireUrl.includes('mediafire.com')) return message.reply(langText("downloader", "mediafire_url", { prefix }, message.userLang || global.currentUserLang));
+    let response = await smdJson('https://empiretech-api.hf.space/api/download/mediafire?apikey=empire&url=' + mediafireUrl);
+    if (!response || !response.success) return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+    let downloadUrl = response.result?.download || false;
+    let fileName = response.result?.filename || 'mediafire_file';
+    let mimeType = response.result?.filetype || 'application/octet-stream';
+    let fileSize = response.result?.filesize || 'Unknown';
+    if (!downloadUrl) return await message.reply(langText("msgs", "not_found", {}, message.userLang || global.currentUserLang));
+    let caption = '*『 Mᴇᴅɪᴀғɪʀᴇ Dᴏᴡɴʟᴏᴀᴅᴇʀ 』*\n\n *Name* : ' + fileName + '\n *Size* : ' + fileSize + '\n *Mime* : ' + mimeType + '\n' + Config.caption;
+    await message.bot.sendMessage(message.chat, { document: { url: downloadUrl }, fileName: fileName, mimetype: mimeType, caption: caption }, { quoted: message });
+  } catch (error) {
+    return message.error(error + '\n\ncommand: mediafire', error, '*_File not found!!_*');
+  }
+});
+
+// ==================== APK DOWNLOAD ====================
+smd({
+  pattern: 'apk',
+  alias: ['modapk'],
+  desc: 'Downloads apks.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<give text>'
+}, async (message, appName) => {
+  try {
+    if (!appName) return message.reply(langText("downloader", "provide_app", {}, message.userLang || global.currentUserLang));
+    let response = await smdJson('https://empiretech-api.hf.space/api/search/aptoide?apikey=efe123&q=' + appName);
+    if (!response || !response.success || !response.result) return message.reply(langText("downloader", "not_found", {}, message.userLang || global.currentUserLang));
+    let appData = response.result;
+    const downloadLink = appData.download_url;
+    if (!downloadLink) return message.reply(langText("msgs", "not_found", {}, message.userLang || global.currentUserLang));
+    let caption = '*『 ᗩᑭᏦ  ᗞᝪᗯᑎᒪᝪᗩᗞᗴᖇ 』*\n\n*APP Name :* ' + appData.name + '\n' + Config.caption;
+    const fileName = (appData?.name || 'app') + '.apk';
+    const filePath = './temp/' + fileName;
+    let sentMsg = await message.reply(appData.icon, { caption: caption }, 'image', message);
+    axios.get(downloadLink, { responseType: 'stream' }).then(response => {
+      const writer = fs.createWriteStream(filePath);
+      response.data.pipe(writer);
+      return new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
+    }).then(() => {
+      message.bot.sendMessage(message.chat, { document: fs.readFileSync(filePath), mimetype: 'application/vnd.android.package-archive', fileName: fileName }, { quoted: sentMsg });
+      try { fs.unlinkSync(filePath); } catch {}
+    }).catch(() => {
+      try { fs.unlink(filePath); } catch {};
+      message.reply(langText("msgs", "file_not_found", {}, message.userLang || global.currentUserLang));
+    });
+  } catch (error) {
+    await message.error(error + '_File not found!!!_', error, '*_Apk not Found, Sorry_*');
+  }
+});
+
+// ==================== APK SEARCH ====================
+cmd({
+  pattern: 'apks',
+  alias: ['apksearch'],
+  desc: 'Searches APKs on aptoide.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<Search Query>'
+}, async (message, query) => {
+  try {
+    if (!query) return await message.reply(langText("downloader", "provide_app", {}, message.userLang || global.currentUserLang));
+    let response = await smdJson('https://empiretech-api.hf.space/api/search/aptoide?apikey=efe123&q=' + query);
+    if (!response || !response.success || !response.result) return message.reply(langText("downloader", "not_found", {}, message.userLang || global.currentUserLang));
+    let appData = response.result;
+    let listMsg = '*ᴇᴍᴘɪʀᴇ-ᴍᴅ • ᴀᴘᴋ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪsᴛ* \n*________________________________* \n\n*_Reply Any Number To Download._*\n_Results For : ' + query + '_ \n';
+    listMsg += '\n*1 : ' + appData.name + '* \n*Download :* ' + appData.download_url + '* \n';
+    return await message.bot.sendMessage(message.chat, { image: { url: appData.icon }, caption: listMsg }, { quoted: message });
+  } catch (error) {
+    message.error(error + "*_Uhh dear, Give me App Name!_*", error);
+  }
+});
+
+// ==================== TEXT TO SPEECH ====================
+smd({
+  pattern: 'tts',
+  desc: 'text to speech.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<Hii,this is Empire>'
+}, async (message, text) => {
+  try {
+    let ttsText = message.reply_text ? message.reply_text : text;
+    if (!ttsText) return message.reply(langText("downloader", "tts_example", {}, message.userLang || global.currentUserLang));
+
+    const audioUrl = googleTTS.getAudioUrl(ttsText, {
+      lang: 'en',
+      slow: false,
+      host: 'https://translate.google.com'
+    });
+
+    return await message.bot.sendMessage(message.chat, {
+      audio: { url: audioUrl },
+      mimetype: 'audio/mpeg',
+      fileName: 'tts.mp3',
+      ptt: true
+    }, { quoted: message });
+
+  } catch (error) {
+    return message.error(error + '_audio file not Found!!_', error, false);
+  }
+});
+
+// ==================== DOWNLOAD MP4 FROM URL ====================
+smd({
+  pattern: 'downmp4',
+  alias: ['mp4down', 'mp4fromurl'],
+  desc: 'download mp4 from url.',
+  category: 'downloader',
+  use: '<url>',
+  filename: __filename
+}, async (message, url) => {
+  try {
+    let videoUrl = ('' + (url ? url : message.reply_text)).split(' ')[0].toLowerCase();
+    if (!videoUrl || !videoUrl.includes('.mp4')) return message.reply(langText("downloader", "video_url_example", { prefix }, message.userLang || global.currentUserLang));
+    var type = url.toLowerCase().includes('doc') ? 'document' : 'video';
+    let videoBuffer = await getBuffer(videoUrl);
+    await message.bot.sendMessage(message.chat, { [type]: videoBuffer, caption: '*_Here\'s Your Video_\n*', mimetype: 'video/mp4', contextInfo: { ...(await message.bot.contextInfo(Config.botname, message.pushName)) } }, { quoted: message });
+  } catch (error) {
+    await message.error(error + '*_Video not found!_*', error, '*_Video Not Found!_*');
+  }
+});
+
+// ==================== YOUTUBE VIDEO DOWNLOADER (UPDATED URL ONLY) ====================
+smd({
+  pattern: 'video',
+  alias: ['ytmp4', 'ytv', 'ytvid'],
+  desc: 'Downloads video from YouTube via search.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<search query or url>'
+}, async (message, input) => {
+  try {
+    let query = input ? input : message.reply_text;
+    if (!query) return message.reply(langText("downloader", "provide_query", {}, message.userLang || global.currentUserLang));
+
+    var isDoc = query.toLowerCase().includes('doc');
+    let videoUrl = query;
+    let title = query;
+
+    if (!/youtu\.be|youtube\.com/.test(videoUrl)) {
+      let searchResults = await yts(query);
+      if (!searchResults.videos || !searchResults.videos[0]) return await message.reply(langText("msgs", "no_result", {}, message.userLang || global.currentUserLang));
+      videoUrl = searchResults.videos[0].url;
+      title = searchResults.videos[0].title;
+    }
+
+    // NEW API URL for video only
+    let downloadResponse = await fetchJson(`https://eliteprotech-apis.zone.id/ytdown?url=${videoUrl}&format=mp4`);
+
+    if (!downloadResponse || !downloadResponse.success) return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+
+    let downloadUrl = downloadResponse.downloadURL;
+
+    if (!downloadUrl) return await message.reply(langText("msgs", "video_not_found", {}, message.userLang || global.currentUserLang));
+
+    await message.reply(`\`\`\`Downloading ${title}\`\`\``);
+
+    if (isDoc) {
+      return await message.bot.sendMessage(message.chat, {
+        document: { url: downloadUrl },
+        fileName: 'Empire-Md-video.mp4',
+        mimetype: 'video/mp4',
+        caption: Config.caption
+      }, { quoted: message });
+    } else {
+      return await message.bot.sendMessage(message.chat, {
+        video: { url: downloadUrl },
+        caption: Config.caption,
+        mimetype: 'video/mp4'
+      }, { quoted: message });
+    }
+
+  } catch (error) {
+    return message.error(error + '\n\ncommand: video', error, '*_Video not Found_*');
+  }
+});
+
+// ==================== YOUTUBE AUDIO DOWNLOADER (KEPT ORIGINAL) ====================
+smd({
+  pattern: 'audio',
+  alias: ['yta'],
+  desc: 'Downloads audio from YouTube via search.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<search query or url>'
+}, async (message, input) => {
+  try {
+    let query = input ? input : message.reply_text;
+    if (!query) return message.reply(langText("downloader", "provide_query", {}, message.userLang || global.currentUserLang));
+
+    var isDoc = query.toLowerCase().includes('doc');
+    let videoUrl = query;
+    let title = query;
+
+    if (!/youtu\.be|youtube\.com/.test(videoUrl)) {
+      let searchResults = await yts(query);
+      if (!searchResults.videos || !searchResults.videos[0]) return await message.reply(langText("msgs", "no_result", {}, message.userLang || global.currentUserLang));
+
+      videoUrl = searchResults.videos[0].url;
+      title = searchResults.videos[0].title;
+    }
+
+    let downloadResponse = await smdJson(api_smd + '/api/download/ytmp3?apikey=efe123&url=' + videoUrl);
+    if (!downloadResponse || !downloadResponse.success) return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+
+    let downloadUrl = downloadResponse.result;
+    if (!downloadUrl) return await message.reply(langText("msgs", "audio_not_found", {}, message.userLang || global.currentUserLang));
+
+    await message.reply(`\`\`\`Downloading ${title}\`\`\``);
+
+    let audioBuffer = await getBuffer(downloadUrl);
+
+    if (isDoc) {
+      return await message.bot.sendMessage(message.chat, {
+        document: audioBuffer,
+        fileName: 'Empire-Md-audio.mp3',
+        mimetype: 'audio/mpeg'
+      }, {
+        quoted: message
+      });
+    } else {
+      return await message.bot.sendMessage(message.chat, {
+        audio: audioBuffer,
+        mimetype: 'audio/mpeg'
+      }, {
+        quoted: message
+      });
+     }
+  } catch (error) {
+    return message.error(error + '\n\ncommand: audio', error, '*_Audio not Found_*');
+  }
+});
+// ==================== RINGTONE DOWNLOADER ====================
+smd({
+  pattern: 'ringtone',
+  alias: ['sound'],
+  desc: 'Downloads ringtones by number (1-160).',
+  category: 'downloader',
+  filename: __filename,
+  use: '<number 1-160>'
+}, async (message, number) => {
+  try {
+    if (!number) return message.reply(langText("downloader", "provide_number", { prefix }, message.userLang || global.currentUserLang));
+    const soundNumber = parseInt(number);
+    if (isNaN(soundNumber) || soundNumber < 1 || soundNumber > 160) return message.reply(langText("downloader", "invalid_number", {}, message.userLang || global.currentUserLang));
+    let soundUrl = 'https://github.com/DGXeon/Tiktokmusic-API/raw/master/tiktokmusic/sound' + soundNumber + '.mp3';
+    let audioBuffer = await getBuffer(soundUrl);
+    var contextInfo = { ...(await message.bot.contextInfo(Config.botname, 'Ringtone ' + soundNumber)) };
+    return message.bot.sendMessage(message.chat, { audio: audioBuffer, fileName: 'Ringtone ' + soundNumber + '.mp3', mimetype: 'audio/mpeg', ptt: true, contextInfo: contextInfo }, { quoted: message });
+  } catch (error) {
+    return message.error(error + '*_Ringtone not found!!_*', error, false);
+  }
+});
+
+// ==================== YOUTUBE SONG SEARCH ====================
+smd({
+  pattern: 'song',
+  alias: ['play'],
+  desc: 'Searches YouTube songs with interactive selection.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<song name>'
+}, async (message, query) => {
+  try {
+    if (!query) return await message.reply(langText("downloader", "provide_query", {}, message.userLang || global.currentUserLang));
+    let searchResults = await yts(query);
+    let firstResult = searchResults.videos[0];
+    let infoMsg = '*ᴇᴍᴘɪʀᴇ-ᴍᴅ • sᴏɴɢ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n*Title :* ' + firstResult.title + '\n*Url :* ' + firstResult.url + '\n*Description :* ' + firstResult.description + '\n*Views :* ' + firstResult.views + '\n*Uploaded :* ' + firstResult.ago + '\n\n\n_Reply 1 To Video_ Or _1 document_\n_Reply 2 To Audio_ Or _2 document_';
+    let thumbnailBuffer = await smdBuffer(firstResult.thumbnail);
+    var contextInfo = { ...(await message.bot.contextInfo(Config.botname, 'Song Downloader', thumbnailBuffer)) };
+    await message.bot.sendMessage(message.chat, { image: thumbnailBuffer, caption: infoMsg, contextInfo: contextInfo });
+  } catch (error) {
+    return message.error(error + '*_No Results Found!_*', error, '*_File not found!!_*');
+  }
+});
+
+// ==================== YOUTUBE SEARCH ====================
+cmd({
+  pattern: 'yts',
+  alias: ['yt', 'ytsearch'],
+  desc: 'Search on YouTube.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<Yt Search Query>'
+}, async (message, query) => {
+  try {
+    if (!query) return await message.reply(langText("downloader", "provide_query", {}, message.userLang || global.currentUserLang));
+    let searchResults = await yts(query);
+    let resultMsg = '*ᴇᴍᴘɪʀᴇ-ᴍᴅ • ʏᴏᴜᴛᴜʙᴇ ᴅᴏᴡɴʟᴏᴀᴅ*\n*_______________________________*\n\n_Reply Any Number To Download._\n  _For Audio: 1 mp3._\n  _For Video: 1 video._\n  _For document: 1 document._\n\n_Results For : ' + query + '_ \n';
+    let counter = 1;
+    for (let video of searchResults.videos) {
+      resultMsg += '\n*' + counter++ + ' : ' + video.title + (video.timestamp ? ' (' + video.timestamp + ')' : '') + '*\n*Url :* ' + video.url + '*';
+    }
+    return await message.bot.sendMessage(message.chat, { image: { url: searchResults.videos[0].thumbnail }, caption: resultMsg }, { quoted: message });
+  } catch (error) {
+    return await message.reply(langText("msgs", "no_result", {}, message.userLang || global.currentUserLang));
+  }
+});
+
+// ==================== YOUTUBE DOCUMENT (KEPT ORIGINAL) ====================
+smd({
+  pattern: 'ytdoc',
+  alias: ['ytd'],
+  desc: 'Downloads YouTube audio as document.',
+  category: 'downloader',
+  use: '<yt video url>'
+}, async (message, input) => {
+  try {
+    let url = input ? input : message.reply_text;
+    if (!url) return await message.reply('❌ Please provide me a YouTube url');
+    let videoUrl = url.split(' ')[0];
+    if (!/youtu\.be|youtube\.com/.test(videoUrl)) return await message.reply(langText("downloader", "invalid_url", {}, message.userLang || global.currentUserLang));
+    let response = await smdJson(api_smd + '/api/downloader/ytmp3?url=' + videoUrl);
+    if (!response || !response.data || !response.data.status) return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+    let downloadUrl = response.data.data.dl_link;
+    let title = response.data.data.title || 'Empire-Md Audio';
+    if (!downloadUrl) return await message.reply(langText("msgs", "audio_not_found", {}, message.userLang || global.currentUserLang));
+    var contextInfo = { ...(await message.bot.contextInfo(Config.botname, 'YT Doc Downloader')) };
+    await message.bot.sendMessage(message.chat, { document: { url: downloadUrl }, mimetype: 'audio/mpeg', fileName: title + '.mp3', caption: Config.caption, contextInfo: contextInfo }, { quoted: message });
+  } catch (error) {
+    await message.error(error + '\n\ncommand: ytdoc', error, '*_Could not found anything_*');
+  }
+});
+
+
+// ==================== INTERACTIVE MESSAGE LISTENER (UPDATED VIDEO & AUDIO) ====================
+smd({
+  on: 'text'
+}, async (message, text, { isCreator }) => {
+  if (!message.reply_message) return;
+  const lines = message.reply_message.text.split('\n');
+
+  // Song downloader listener
+  if (lines[0].includes('*ᴇᴍᴘɪʀᴇ-ᴍᴅ • sᴏɴɢ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*')) {
+    const urlLine = lines.find(line => line.startsWith('*Url :*'));
+    if (!urlLine) return;
+    let videoUrl = urlLine.replace('*Url :*', '').replace(/\*/g, '').trim();
+    try {
+      await message.react('✨');
+      let replyText = message.text.trim();
+      let isDoc = replyText.toLowerCase().includes('doc');
+      if (replyText.startsWith('1')) {
+        // Video download
+        let downloadResponse = await fetchJson(`https://eliteprotech-apis.zone.id/ytdown?url=${videoUrl}&format=mp4`);
+        if (downloadResponse && downloadResponse.success) {
+          let downloadUrl = downloadResponse.downloadURL;
+          if (downloadUrl) {
+            if (isDoc) return await message.bot.sendMessage(message.chat, { document: { url: downloadUrl }, fileName: 'Empire-Md-video.mp4', mimetype: 'video/mp4', caption: Config.caption }, { quoted: message.reply_message });
+            else return await message.bot.sendMessage(message.chat, { video: { url: downloadUrl }, caption: Config.caption, mimetype: 'video/mp4' }, { quoted: message.reply_message });
+          }
+        }
+        return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+      }
+      if (replyText.startsWith('2')) {
+        // Audio download (MP3)
+        let downloadResponse = await smdJson(api_smd + '/api/download/ytmp3?apikey=efe123&url=' + videoUrl);
+        if (downloadResponse && downloadResponse.success) {
+          let downloadUrl = downloadResponse.result;
+          if (downloadUrl) {
+            if (isDoc) return await message.bot.sendMessage(message.chat, { document: { url: downloadUrl }, fileName: 'Empire-Md-audio.mp3', mimetype: 'audio/mpeg' }, { quoted: message.reply_message });
+            else return await message.bot.sendMessage(message.chat, { audio: { url: downloadUrl }, mimetype: 'audio/mpeg' }, { quoted: message.reply_message });
+          }
+        }
+        return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+      }
+    } catch (error) { message.error(error + '\n\nCommand song Listener', error, 'error'); }
+  }
+
+  // YT search listener (UPDATED VIDEO & AUDIO)
+  else if (lines[0].includes('*ᴇᴍᴘɪʀᴇ-ᴍᴅ • ʏᴏᴜᴛᴜʙᴇ ᴅᴏᴡɴʟᴏᴀᴅ*')) {
+    let replyNumber = message.text.split(' ')[0].trim();
+    let targetLine = null;
+    for (let line of lines) { if (line.startsWith('*' + replyNumber + ' :')) { targetLine = line; break; } }
+    if (!targetLine) return;
+    let lineIndex = lines.indexOf(targetLine);
+    let nextLine = lines[lineIndex + 1];
+    if (!nextLine || !nextLine.startsWith('*Url :*')) return;
+    let videoUrl = nextLine.replace('*Url :*', '').replace(/\*/g, '').trim();
+    if (!videoUrl) return;
+    try {
+      await message.react('✨');
+      let replyText = message.text.trim();
+      let isDoc = replyText.toLowerCase().includes('doc');
+      let isAudio = /mp3|audio|music/.test(replyText.toLowerCase());
+      let downloadUrl = null;
+      let isSuccess = false;
+      if (isAudio) {
+        let downloadResponse = await smdJson(api_smd + '/api/download/ytmp3?apikey=efe123&url=' + videoUrl);
+        if (downloadResponse && downloadResponse.success) {
+          downloadUrl = downloadResponse.result;
+          isSuccess = true;
+        }
+      } else {
+        let downloadResponse = await fetchJson(`https://eliteprotech-apis.zone.id/ytdown?url=${videoUrl}&format=mp4`);
+        if (downloadResponse && downloadResponse.success) {
+          downloadUrl = downloadResponse.downloadURL;
+          isSuccess = true;
+        }
+      }
+
+      if (isSuccess && downloadUrl) {
+        if (isAudio) {
+          if (isDoc) return await message.bot.sendMessage(message.chat, { document: { url: downloadUrl }, fileName: 'Empire-Md-audio.mp3', mimetype: 'audio/mpeg' }, { quoted: message.reply_message });
+          else return await message.bot.sendMessage(message.chat, { audio: { url: downloadUrl }, mimetype: 'audio/mpeg' }, { quoted: message.reply_message });
+        } else {
+          if (isDoc) return await message.bot.sendMessage(message.chat, { document: { url: downloadUrl }, fileName: 'Empire-Md-video.mp4', mimetype: 'video/mp4', caption: Config.caption }, { quoted: message.reply_message });
+          else return await message.bot.sendMessage(message.chat, { video: { url: downloadUrl }, caption: Config.caption, mimetype: 'video/mp4' }, { quoted: message.reply_message });
+        }
+      }
+      return await message.reply(langText("downloader", "download_failed", {}, message.userLang || global.currentUserLang));
+    } catch (error) { message.error(error + 'Failed to process yt selection', error, 'error'); }
+  }
+
+  // APK search listener
+  else if (lines[0].includes('ᴇᴍᴘɪʀᴇ-ᴍᴅ • ᴀᴘᴋ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪsᴛ')) {
+    let replyNumber = message.text.split(' ')[0].trim();
+    let targetLine = null;
+    for (let line of lines) { if (line.startsWith('*' + replyNumber + ' :')) { targetLine = line; break; } }
+    if (!targetLine) return;
+    let lineIndex = lines.indexOf(targetLine);
+    let nextLine = lines[lineIndex + 1];
+    if (!nextLine || !nextLine.startsWith('*Download :*')) return;
+    let downloadUrl = nextLine.replace('*Download :*', '').replace(/\*/g, '').trim();
+    try {
+      await message.react('✨');
+      let appName = targetLine.replace('*' + replyNumber + ' :', '').replace(/\*/g, '').trim();
+      let response = await smdJson('https://empiretech-api.hf.space/api/search/aptoide?apikey=efe123&q=' + appName);
+      if (response && response.success && response.result) {
+        let appData = response.result;
+        let caption = '*App Name :* ' + appData.name + '\n' + global.caption;
+        return await message.bot.sendMessage(message.chat, { document: { url: appData.download_url }, mimetype: 'application/vnd.android.package-archive', fileName: appData.name + '.apk', caption: caption }, { quoted: message.reply_message });
+      }
+      return message.reply(langText("downloader", "not_found", {}, message.userLang || global.currentUserLang));
+    } catch (error) { message.reply(langText("downloader", "not_found", {}, message.userLang || global.currentUserLang)); }
+  }
+});
+
+// ==================== GOOGLE DRIVE DOWNLOADER ====================
+smd({
+  pattern: 'gdrive',
+  alias: ['gd', 'googledrive', 'drive'],
+  desc: 'Downloads files from Google Drive.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<google drive share link>'
+}, async (message, input) => {
+  try {
+    let driveUrl = (input || message.reply_text || '').trim();
+    if (!driveUrl) {
+      return await message.reply(
+        '*『 Gᴏᴏɢʟᴇ Dʀɪᴠᴇ Dᴏᴡɴʟᴏᴀᴅᴇʀ 』*\n\n' +
+        '*Usage:* ' + prefix + 'gdrive <google drive link>\n' +
+        '*Example:*\n' +
+        '  `' + prefix + 'gdrive https://drive.google.com/file/d/FILE_ID/view`\n' +
+        '  `' + prefix + 'gdrive https://drive.google.com/open?id=FILE_ID`\n\n' +
+        '_Note: File must be publicly accessible (anyone with link)._'
+      );
+    }
+
+    // Extract file ID from various Google Drive URL formats
+    let fileId = null;
+    const patterns = [
+      /\/file\/d\/([a-zA-Z0-9_-]+)/,           // /file/d/FILE_ID
+      /[?&]id=([a-zA-Z0-9_-]+)/,               // ?id=FILE_ID or &id=FILE_ID
+      /\/folders\/([a-zA-Z0-9_-]+)/,           // /folders/FOLDER_ID
+      /\/d\/([a-zA-Z0-9_-]+)/                  // /d/FILE_ID shortlink
+    ];
+    for (const pattern of patterns) {
+      const match = driveUrl.match(pattern);
+      if (match) { fileId = match[1]; break; }
+    }
+
+    if (!fileId) {
+      return await message.reply(langText("downloader", "invalid_drive", {}, message.userLang || global.currentUserLang));
+    }
+
+    await message.react('⏳');
+
+    // Try primary: direct Google Drive download URL
+    let directUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
+    let fileName = 'gdrive_file';
+    let mimeType = 'application/octet-stream';
+    let fileSize = 'Unknown';
+
+    // Try to fetch metadata via API
+    let metaRes = null;
+    try {
+      metaRes = await fetchJson(`https://empiretech-api.hf.space/api/download/gdrive?apikey=empire&id=${fileId}`);
+    } catch (_) {}
+
+    if (metaRes && metaRes.success && metaRes.result) {
+      let result = metaRes.result;
+      directUrl = result.download || result.url || directUrl;
+      fileName = result.filename || result.name || fileName;
+      mimeType = result.mimeType || result.mimetype || mimeType;
+      fileSize = result.size || fileSize;
+    } else {
+      // Fallback: Try betabotz or similar
+      try {
+        let fallback = await fetchJson(`https://tools.betabotz.eu.org/tools/gdrive?id=${fileId}`);
+        if (fallback && fallback.result) {
+          directUrl = fallback.result.download_url || directUrl;
+          fileName = fallback.result.name || fileName;
+          mimeType = fallback.result.type || mimeType;
+          fileSize = fallback.result.size || fileSize;
+        }
+      } catch (_) {}
+    }
+
+    let caption =
+      '*『 Gᴏᴏɢʟᴇ Dʀɪᴠᴇ Dᴏᴡɴʟᴏᴀᴅᴇʀ 』*\n\n' +
+      ' *📄 Name :* ' + fileName + '\n' +
+      ' *📦 Size :* ' + fileSize + '\n' +
+      ' *📋 Type :* ' + mimeType + '\n' +
+      Config.caption;
+
+    await message.bot.sendMessage(
+      message.chat,
+      { document: { url: directUrl }, fileName: fileName, mimetype: mimeType, caption: caption },
+      { quoted: message }
+    );
+    await message.react('✅');
+
+  } catch (error) {
+    await message.react('❌');
+    return message.error(error + '\n\ncommand: gdrive', error, '*_❌ Failed to download from Google Drive!_*');
+  }
+});
+
+// ==================== TERABOX DOWNLOADER ====================
+smd({
+  pattern: 'terabox',
+  alias: ['tb', 'tera', 'teraboxdl'],
+  desc: 'Downloads files from TeraBox.',
+  category: 'downloader',
+  filename: __filename,
+  use: '<terabox share link>'
+}, async (message, input) => {
+  try {
+    let teraUrl = (input || message.reply_text || '').trim();
+    if (!teraUrl) {
+      return await message.reply(
+        '*『 Tᴇʀᴀʙᴏx Dᴏᴡɴʟᴏᴀᴅᴇʀ 』*\n\n' +
+        '*Usage:* ' + prefix + 'terabox <terabox link>\n' +
+        '*Example:*\n' +
+        '  `' + prefix + 'terabox https://terabox.com/s/1aBcDeF`\n' +
+        '  `' + prefix + 'terabox https://1024terabox.com/s/1aBcDeF`\n\n' +
+        '_Note: File must be set to public sharing._'
+      );
+    }
+
+    if (!/terabox\.com|1024terabox\.com|teraboxapp\.com|4funbox\.com/.test(teraUrl)) {
+      return await message.reply(langText("downloader", "invalid_terabox", {}, message.userLang || global.currentUserLang));
+    }
+
+    await message.react('⏳');
+
+    // Try multiple public TeraBox resolver endpoints
+    let downloadUrl = null, fileName = 'terabox_file', fileSize = 'Unknown', thumbnail = null;
+
+    const endpoints = [
+      `https://teraboxdownloader.online/api/?url=${encodeURIComponent(teraUrl)}`,
+      `https://terabox.udayyy.com/api?url=${encodeURIComponent(teraUrl)}`,
+      `https://tera.zeropower.xyz/api?url=${encodeURIComponent(teraUrl)}`
+    ];
+
+    for (let endpoint of endpoints) {
+      try {
+        let res = await fetchJson(endpoint);
+        // Handle various response shapes from different APIs
+        if (res) {
+          if (res.download_url) { downloadUrl = res.download_url; fileName = res.file_name || fileName; fileSize = res.size || fileSize; thumbnail = res.thumbnail || null; break; }
+          if (res.url) { downloadUrl = res.url; fileName = res.name || res.filename || fileName; fileSize = res.size || fileSize; break; }
+          if (res.result && res.result.download) { downloadUrl = res.result.download; fileName = res.result.name || fileName; fileSize = res.result.size || fileSize; break; }
+          if (res.data && res.data.download_url) { downloadUrl = res.data.download_url; fileName = res.data.file_name || fileName; break; }
+          if (Array.isArray(res) && res[0] && res[0].url) { downloadUrl = res[0].url; fileName = res[0].name || fileName; break; }
+        }
+      } catch (_) {}
+    }
+
+    if (!downloadUrl) {
+      // Final fallback: empiretech HF space
+      try {
+        let fallback = await fetchJson(`https://empiretech-api.hf.space/api/download/terabox?apikey=empire&url=${encodeURIComponent(teraUrl)}`);
+        if (fallback && fallback.success && fallback.result) {
+          downloadUrl = fallback.result.download || fallback.result.url;
+          fileName = fallback.result.filename || fileName;
+          fileSize = fallback.result.size || fileSize;
+        }
+      } catch (_) {}
+    }
+
+    if (!downloadUrl) {
+      await message.react('❌');
+      return await message.reply(
+        '*_❌ Could not resolve TeraBox download link._*\n' +
+        '_The file may be private, deleted, or the service is temporarily unavailable._'
+      );
+    }
+
+    let isVideo = /\.(mp4|mkv|avi|mov|wmv|flv|webm)$/i.test(fileName);
+    let mimeType = isVideo ? 'video/mp4' : 'application/octet-stream';
+
+    let caption =
+      '*『 Tᴇʀᴀʙᴏx Dᴏᴡɴʟᴏᴀᴅᴇʀ 』*\n\n' +
+      ' *📄 Name :* ' + fileName + '\n' +
+      ' *📦 Size :* ' + fileSize + '\n' +
+      Config.caption;
+
+    if (thumbnail) {
+      await message.bot.sendMessage(message.chat, { image: { url: thumbnail }, caption: caption }, { quoted: message });
+    }
+
+    if (isVideo) {
+      await message.bot.sendMessage(
+        message.chat,
+        { video: { url: downloadUrl }, caption: caption, mimetype: 'video/mp4', fileName: fileName },
+        { quoted: message }
+      );
+    } else {
+      await message.bot.sendMessage(
+        message.chat,
+        { document: { url: downloadUrl }, fileName: fileName, mimetype: mimeType, caption: caption },
+        { quoted: message }
+      );
+    }
+    await message.react('✅');
+
+  } catch (error) {
+    await message.react('❌');
+    return message.error(error + '\n\ncommand: terabox', error, '*_❌ Failed to download from TeraBox!_*');
+  }
+});

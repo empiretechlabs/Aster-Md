@@ -1,0 +1,656 @@
+/**
+ * Suhail-Md WhatsApp Bot
+ * @project_name : Suhail-Md
+ * @author : Suhail Tech Info
+ * @youtube : https://www.youtube.com/@SuhailTechInfo
+ * @description : Suhail-Md, A Multi-functional whatsapp user bot.
+ * @version 1.2.7
+ * Licensed under GPL-3.0 License
+ * © 2023 Suhail-Md
+ */
+
+let {
+  fancytext, tlang, tiny, bot_, alive, userdb, runtime, formatp, smsg,
+  getAdmin, send, react, botpic, sleep, getBuffer, prefix, sck1, smd,
+  sck, getTime, formatDate, groupdb, smdJson, smdBuffer, isAdmin,
+  langText, tr
+} = require("../lib");
+
+const axios = require("axios");
+const fetch = require("node-fetch");
+const os = require('os');
+const speed = require('performance-now');
+const Config = require("../config");
+const cheerio = require("cheerio");
+
+// Command: List active users and their message counts in current chat
+smd({
+  'cmdname': "listmessage",
+  'alias': ["countmessage", "msgcount"],
+  'desc': "Check how many users continuously active in chat!",
+  'category': "new",
+  'filename': __filename
+}, async (message, chat, { store }) => {
+  try {
+    let userMessageCount = {};
+    
+    // Count messages per user
+    store.messages[message.jid].array.forEach(msg => {
+      const userName = msg.pushName || (message.isGroup ? msg.key.participant : msg.key.remoteJid || 'unknown').split('@')[0];
+      userMessageCount[userName] = (userMessageCount[userName] || 0) + 1;
+    });
+    
+    let userEntries = Object.entries(userMessageCount);
+    if (!userEntries || !userEntries[0]) {
+      return await message.reply("_No messages found!_");
+    }
+    
+    // Format user list with message counts
+    const userList = Object.entries(userMessageCount)
+      .map(([name, count]) => `\t*${(name?.split("\n").join(" ") || "unknown")}*  ➪  _${count}_`)
+      .join("\n");
+    
+    var responseText = (`*LIST OF ACTIVE USERS IN CURRENT CHAT*\n_Note: Sometimes Data will be reset when bot restart!_\n\n*Total Users: _${userEntries.length}_*\n\n*USERNAME ➪ MESSAGE COUNT(s)*\n${userList}\n\n${Config.caption}`).trim();
+    
+    await message.send(responseText, {
+      'contextInfo': {
+        ...(await message.bot.contextInfo("ACTIVE USERS", message.senderName))
+      }
+    }, 'empire', message);
+  } catch (error) {
+    console.log({ 'error': error });
+  }
+});
+
+// Command history tracking
+global.commandHistory = global.commandHistory || [];
+const commandHistory = global.commandHistory;
+
+// Auto-track commands used
+smd({
+  'on': 'main'
+}, async (message, chat, { icmd }) => {
+  try {
+    if (icmd && message.cmd) {
+      commandHistory.push({
+        'user': message.sender,
+        'command': message.cmd,
+        'timestamp': new Date()
+      });
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : listmessage", error, "*ERROR!*");
+  }
+});
+
+// Command: Show command usage statistics
+smd({
+  'cmdname': "cmdused",
+  'alias': ["cmds", "usedcmd", "usage"],
+  'desc': "Counts the commands used by users after starting bot?",
+  'category': "new",
+  'filename': __filename
+}, async (message) => {
+  try {
+    let userOrder = [];
+    const userStats = {};
+    
+    // Calculate command usage per user
+    commandHistory.forEach(({ user, command }) => {
+      if (!userStats[user]) {
+        userStats[user] = {
+          'commands': {},
+          'count': 0
+        };
+        userOrder.push(user);
+      }
+      if (!userStats[user].commands[command]) {
+        userStats[user].commands[command] = 1;
+      } else {
+        userStats[user].commands[command]++;
+      }
+      userStats[user].count++;
+    });
+    
+    // Format usage statistics
+    const usageReport = userOrder.map((user, index) => {
+      const userCommands = userStats[user].commands;
+      const commandList = Object.entries(userCommands)
+        .map(([cmd, count]) => cmd + " " + (count <= 1 ? '' : '(' + count + ')'))
+        .join(", ");
+      return `*${(index + 1)} -- @${user.split('@')[0]}'s ➪ ${userStats[user].count}*  \n *LIST ➪*  _${commandList.trim()}_`;
+    }).join("\n\n");
+    
+    var responseText = (`*LIST OF COMMANDS USED TODAY!*\n_Note: Data will be reset when bot restart!_\n\n*Total Users: _${userOrder.length}_*\n*Total Command Used: _${commandHistory.length}_*\n\n${usageReport}\n\n${Config.caption}`).trim();
+    
+    await message.send(responseText, {
+      'contextInfo': {
+        ...(await message.bot.contextInfo("HISTORY"))
+      },
+      'mentions': [...userOrder]
+    }, "empire", message);
+  } catch (error) {
+    await message.error(error + "\n\ncommand : cmdused", error, "*ERROR!*");
+  }
+});
+
+// Command: Test if bot is active
+smd({
+  'cmdname': 'test',
+  'alias': ['check', "checkbot"],
+  'desc': "Check bot is active?",
+  'category': "misc",
+  'filename': __filename
+}, async (message) => {
+  try {
+    await message.reply(langText("new", "bot_active", {}, message.userLang || global.currentUserLang), {
+      'contextInfo': {
+        'externalAdReply': {
+          'title': "ACTIVE",
+          'sourceUrl': gurl,
+          'showAdAttribution': true,
+          'thumbnail': await smdBuffer(await message.getpp())
+        }
+      }
+    }, "empire");
+  } catch (error) {}
+});
+
+// Command: Set caption for replied media message
+smd({
+  'cmdname': "caption",
+  'alias': ['setcaption'],
+  'desc': "set caption for Replied Message",
+  'category': 'new',
+  'filename': __filename
+}, async (message, text) => {
+  try {
+    if (!message.reply_message || !text) {
+      return await message.reply(!message.reply_message ? 
+        "*_Please reply to message with caption | filename_*" : 
+        "*Please provide text to set caption!*");
+    }
+    
+    if (message.reply_message.image || message.reply_message.video || 
+        message.reply_message.mtype.includes('document')) {
+      let fileName = text.split('|')[1]?.trim() || "null";
+      let caption = message.reply_message.mtype.includes("document") ? 
+        text.split('|')[0].trim() : text;
+      
+      message.reply_message.message[message.reply_message.mtype].caption = caption;
+      message.reply_message.message[message.reply_message.mtype].fileName = fileName;
+      
+      await message.bot.copyNForward(message.chat, message.reply_message);
+    } else {
+      return await message.reply("please reply to an Audio/Video/document message");
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : caption", error, false);
+  }
+});
+
+// Command: Convert image/video to document
+smd({
+  'cmdname': 'document',
+  'alias': ['senddoc', 'todoc'],
+  'desc': "send document for Replied image/video Message",
+  'category': "new",
+  'filename': __filename
+}, async (message, text) => {
+  try {
+    let mediaMessage = message.image || message.video ? message : 
+      message.reply_message && (message.reply_message.image || message.reply_message.video) ? 
+      message.reply_message : false;
+    
+    if (!mediaMessage) {
+      return await message.reply("_Reply to an image/video message!_");
+    }
+    if (!text) {
+      return await message.reply("_Need fileName, Example: document empire | caption_");
+    }
+    
+    let mediaFile = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+    let separator = text.includes(':') ? ':' : text.includes(';') ? ';' : '|';
+    let fileName = text.split(separator)[0].trim() + '.' + (mediaMessage.image ? "jpg" : 'mp4');
+    let caption = text.split(separator)[1]?.trim() || '';
+    caption = ['copy', 'default', 'old', 'reply'].includes(caption) ? mediaMessage.text : caption;
+    
+    if (mediaFile) {
+      message.bot.sendMessage(message.chat, {
+        'document': { 'url': mediaFile },
+        'mimetype': mediaMessage.mimetype,
+        'fileName': fileName,
+        'caption': caption
+      });
+    } else {
+      message.reply(langText("new", "request_denied", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : document", error, false);
+  }
+});
+
+// Command: Convert to view-once message
+smd({
+  'cmdname': "tovv",
+  'alias': ["toviewonce"],
+  'desc': "send viewonce for Replied image/video Message",
+  'category': 'new',
+  'filename': __filename
+}, async (message, caption) => {
+  try {
+    let mediaMessage = message.image || message.video ? message : 
+      message.reply_message && (message.reply_message.image || message.reply_message.video) ? 
+      message.reply_message : false;
+    
+    if (!mediaMessage) {
+      return await message.reply("_Reply to image/video with caption!_");
+    }
+    
+    let mediaFile = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+    let mediaType = mediaMessage.image ? "image" : 'video';
+    
+    if (mediaFile) {
+      message.bot.sendMessage(message.chat, {
+        [mediaType]: { 'url': mediaFile },
+        'caption': caption,
+        'mimetype': mediaMessage.mimetype,
+        'fileLength': "99999999",
+        'viewOnce': true
+      }, { 'quoted': mediaMessage });
+    } else {
+      message.reply(langText("new", "request_denied", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : tovv", error, false);
+  }
+});
+
+// Command: Show total feature count
+smd({
+  'cmdname': "feature",
+  'alias': ["totalfeature", 'features', "empire"],
+  'category': "new",
+  'filename': __filename,
+  'info': "get counting for total features!"
+}, async (message) => {
+  try {
+    const plugins = require("../lib/plugins");
+    let totalFeatures = Object.values(plugins.commands).length;
+    
+    // Animated counting
+    try {
+      let { key: editKey } = await message.send("Counting... 0", {}, "empire", message);
+      for (let i = 0; i <= totalFeatures; i++) {
+        if (i % 15 === 0) {
+          await message.send("Counting... " + i, { 'edit': editKey }, "empire", message);
+        } else {
+          if (totalFeatures - i < 10) {
+            await message.send("Counting... " + i, { 'edit': editKey }, "empire", message);
+          }
+        }
+      }
+      await message.send("*Feature Counting Done!*", { 'edit': editKey }, "empire", message);
+    } catch (error) {}
+    
+    let featureReport = ` *乂 ＳＵＨＡＩＬ ＭＤ - ＢＯＴ ＦＥＡＴＵＲＥ*\n\n\n  ◦ _Total Features ➪ ${totalFeatures}_\n  \n*◦ LIST DOWN THE FEATURES*\n\n      _Commands ➪ ${Object.values(plugins.commands).filter(cmd => cmd.pattern).length}_\n      _Msg Listener ➪ ${Object.values(plugins.commands).filter(cmd => cmd.on).length}_\n      _Call Listener ➪ ${Object.values(plugins.commands).filter(cmd => cmd.call).length}_\n      _Group Listener ➪ ${Object.values(plugins.commands).filter(cmd => cmd.group).length}_\n  \n\n${Config.caption}`;
+    
+    await message.bot.relayMessage(message.chat, {
+      'requestPaymentMessage': {
+        'currencyCodeIso4217': 'PK',
+        'amount1000': totalFeatures * 1000,
+        'requestFrom': '0@s.whatsapp.net',
+        'noteMessage': {
+          'extendedTextMessage': {
+            'text': featureReport,
+            'contextInfo': {
+              'mentionedJid': [message.sender],
+              'externalAdReply': {
+                'showAdAttribution': true
+              }
+            }
+          }
+        }
+      }
+    }, {});
+  } catch (error) {
+    await message.error(error + "\n\ncommand : feature", error, false);
+  }
+});
+
+// Command: Random character trait generator
+smd({
+  'cmdname': "character",
+  'category': "fun",
+  'use': '[@user]',
+  'filename': __filename,
+  'info': "Check character of replied USER!"
+}, async (message) => {
+  const targetUser = message.reply_message ? message.reply_message.sender : 
+    message.mentionedJid && message.mentionedJid[0] ? message.mentionedJid[0] : '';
+  
+  if (!targetUser || !targetUser.includes('@')) {
+    return await message.reply(langText("new", "mention_user", {}, message.userLang || global.currentUserLang));
+  }
+  
+  const characterTraits = [
+    "Sigma", "Generous", 'Grumpy', "Overconfident", "Obedient", "Good", 
+    'Simple', "Kind", "Patient", "Pervert", "Cool", "Helpful", 'Brilliant', 
+    "Sexy", "Hot", "Gorgeous", "Cute", 'Fabolous', "Funny"
+  ];
+  
+  const randomTrait = characterTraits[Math.floor(Math.random() * characterTraits.length)];
+  let responseText = `Character of @${targetUser.split('@')[0]}  is *${randomTrait}* 🔥⚡`;
+  
+  message.send(responseText, { 'mentions': [targetUser] }, 'empire', message);
+});
+
+// Command: Get random poetry
+smd({
+  'cmdname': "poetry",
+  'alias': ["shairi", "shayeri"],
+  'type': "new",
+  'info': "get random poetry lines"
+}, async (message) => {
+  try {
+    let response = await fetch("https://shizoapi.onrender.com/api/texts/shayari?apikey=shizo");
+    let { result } = await response.json();
+    message.reply(response && result ? result : "_Request Denied from Server!_");
+  } catch (error) {
+    await message.error(error + "\n\ncommand : poetry", error, false);
+  }
+});
+
+// Extracted alexa command to plugins/ai.smd
+
+// Command: Bot status and performance
+smd({
+  'cmdname': "ping2",
+  'alias': ["botstatus", "statusbot", 'p2'],
+  'type': "new",
+  'info': "get random poetry lines"
+}, async (message) => {
+  try {
+    const memoryUsage = process.memoryUsage();
+    
+    // Calculate CPU info
+    const cpus = os.cpus().map(cpu => {
+      cpu.total = Object.keys(cpu.times).reduce((total, timeKey) => total + cpu.times[timeKey], 0);
+      return cpu;
+    });
+    
+    const cpuStats = cpus.reduce((stats, cpu, index, { length }) => {
+      stats.total += cpu.total;
+      stats.speed += cpu.speed / length;
+      stats.times.user += cpu.times.user;
+      stats.times.nice += cpu.times.nice;
+      stats.times.sys += cpu.times.sys;
+      stats.times.idle += cpu.times.idle;
+      stats.times.irq += cpu.times.irq;
+      return stats;
+    }, {
+      'speed': 0, 'total': 0,
+      'times': { 'user': 0, 'nice': 0, 'sys': 0, 'idle': 0, 'irq': 0 }
+    });
+    
+    let startTime = speed();
+    let responseTime = speed() - startTime;
+    let newTime = performance.now();
+    let oldTime = performance.now();
+    
+    let statusReport = (
+      `\nResponse Speed ${responseTime.toFixed(4)} _Second_ \n ${(oldTime - newTime)} _milliseconds_\n\n` +
+      `Runtime : ${runtime(process.uptime())}\n\n` +
+      `💻 Info Server\nRAM: ${formatp(os.totalmem() - os.freemem())} / ${formatp(os.totalmem())}\n\n` +
+      `_NodeJS Memory Usage_\n${Object.keys(memoryUsage).map((key, index, keys) => 
+        key.padEnd(Math.max(...keys.map(k => k.length)), " ") + ": " + formatp(memoryUsage[key])
+      ).join("\n")}\n\n` +
+      (cpus[0] ? 
+        `_Total CPU Usage_\n${cpus[0].model.trim()} (${cpuStats.speed} MHZ)\n` +
+        Object.keys(cpuStats.times).map(timeKey => 
+          `- *${(timeKey + '*').padEnd(6)}: ${(100 * cpuStats.times[timeKey] / cpuStats.total).toFixed(2)}%`
+        ).join("\n") + " " : ''
+      ) + `\n\n `
+    ).trim();
+    
+    message.reply(statusReport);
+  } catch (error) {
+    await message.error(error + "\n\ncommand : ping2", error, false);
+  }
+});
+
+// Command: Get bot's IP address
+smd({
+  'cmdname': "myip",
+  'alias': ['ip'],
+  'type': "new",
+  'info': "get random poetry lines"
+}, async (message) => {
+  try {
+    let { data: ipAddress } = await axios.get("https://api.ipify.org/");
+    message.send(ipAddress ? `*Bot's IP address is : _${ipAddress}_*` : "_No response from server!_");
+  } catch (error) {
+    await message.error(error + "\n\ncommand : myip", error, false);
+  }
+});
+
+// Screenshot website function
+let ssweb = (url, device = 'desktop') => {
+  return new Promise((resolve, reject) => {
+    const requestData = {
+      'url': url,
+      'device': device,
+      'cacheLimit': 0
+    };
+    
+    axios({
+      'url': "https://www.screenshotmachine.com/capture.php",
+      'method': 'POST',
+      'data': new URLSearchParams(Object.entries(requestData)),
+      'headers': {
+        'content-type': "application/x-www-form-urlencoded; charset=UTF-8"
+      }
+    }).then(response => {
+      const cookies = response.headers["set-cookie"];
+      if (response.data.status == "success") {
+        axios.get("https://www.screenshotmachine.com/" + response.data.link, {
+          'headers': { 'cookie': cookies.join('') },
+          'responseType': "arraybuffer"
+        }).then(({ data: imageData }) => {
+          resolve({
+            'status': 200,
+            'result': imageData
+          });
+        });
+      } else {
+        reject({
+          'status': 404,
+          'statuses': "Link Error",
+          'message': response.data
+        });
+      }
+    }).catch(reject);
+  });
+};
+
+// Command: Take website screenshot
+smd({
+  'cmdname': 'ss',
+  'alias': ["webss", "fullss"],
+  'type': 'new',
+  'info': "get random poetry lines"
+}, async (message, text) => {
+  try {
+    let url = text.split(" ")[0].trim();
+    if (!url) {
+      return await message.reply(`*Need URL! Use ${prefix}ss https://github.com/efeurhobobullish/Empire-Md*`);
+    }
+    
+    let screenshot = await ssweb(url);
+    if (screenshot && screenshot.status == "200") {
+      return await message.send(screenshot.result, {
+        'caption': Config.caption
+      }, 'smdimg', message);
+    } else {
+      message.send("_No response from server!_");
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : myip", error, "*Request Denied!*");
+  }
+});
+
+// Temporary email service
+const secmailData = {};
+
+// Command: Create temporary email
+smd({
+  'pattern': "tempmail",
+  'alias': ['tmpmail', "newmail", "tempemail"],
+  'info': "Create temporary email address, and use it according your need!",
+  'type': "email"
+}, async (message) => {
+  try {
+    if (!secmailData[message.sender]) {
+      const emailData = await tempmail.create();
+      if (!emailData || !emailData[0]) {
+        return await message.reply(langText("new", "request_denied", {}, message.userLang || global.currentUserLang));
+      }
+      
+      const emailParts = emailData[0].split('@');
+      secmailData[message.sender] = {
+        'email': emailData[0],
+        'login': emailParts[0],
+        'domain': emailParts[1]
+      };
+    }
+    
+    var thumbnailImage = false;
+    try {
+      thumbnailImage = await smdBuffer("https://telegra.ph/file/b8e96b599e0fa54d25940.jpg");
+    } catch (error) {}
+    
+    await message.reply((`*YOUR TEMPMAIL INFO*\n      \n      \n  *EMAIL:* ➪ ${secmailData[message.sender].email}\n  *Login:* ➪ ${secmailData[message.sender].login}\n  *Domain:* ➪ ${secmailData[message.sender].domain}\n  \n  \n  *USE _${prefix}checkmail_ to get latest emails!*\n  *USE _${prefix}delmail_ to delete current email!*\n  \n  ${Config.caption}\n  `).trim(), {
+      'contextInfo': {
+        ...(await message.bot.contextInfo("TEMPMAIL", message.senderName, thumbnailImage))
+      }
+    }, 'smd', message);
+  } catch (error) {
+    console.log(error);
+    await message.reply(langText("new", "request_denied", {}, message.userLang || global.currentUserLang));
+  }
+});
+
+// Command: Check temporary email inbox
+smd({
+  'pattern': "checkmail",
+  'alias': ["readmail", "reademail"],
+  'type': "email",
+  'info': "check mails in your temporary email address!"
+}, async (message) => {
+  try {
+    const senderId = message.sender;
+    const emailInfo = secmailData[senderId];
+    
+    if (!emailInfo || !emailInfo.email) {
+      return await message.reply(`*You haven't created a temporary email.*\n  *Use _${prefix}tempmail_ to create email first!*`);
+    }
+    
+    const emails = await tempmail.mails(emailInfo.login, emailInfo.domain);
+    if (!emails || !emails[0] || emails.length === 0) {
+      return await message.reply(`*EMPTY  ➪ No mails received yet!* \n*Use _${prefix}delmail_ to delete mail!*`);
+    }
+    
+    var thumbnailImage = false;
+    try {
+      thumbnailImage = await smdBuffer("https://telegra.ph/file/b8e96b599e0fa54d25940.jpg");
+    } catch (error) {}
+    
+    for (const email of emails) {
+      const emailBody = await tempmail.emailContent(emailInfo.login, emailInfo.domain, email.id);
+      console.log({ 'emailContent': emailBody });
+      
+      if (emailBody) {
+        const formattedEmail = `\n  *From* ➪ ${email.from}\n  *Date* ➪  ${email.date}\n  *EMAIL ID* ➪  [${email.id}]\n  *Subject* ➪  ${email.subject}\n  *Content* ➪  ${emailBody}`;
+        
+        await message.reply(formattedEmail, {
+          'contextInfo': {
+            ...(await message.bot.contextInfo(`*EMAIL ➪ ${email.id}*`, message.senderName, thumbnailImage))
+          }
+        }, "smd", message);
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    await message.reply(langText("new", "request_denied", {}, message.userLang || global.currentUserLang));
+  }
+});
+
+// Command: Delete temporary email
+smd({
+  'pattern': 'delmail',
+  'alias': ['deletemail', "deltemp", 'deltmp'],
+  'type': 'email',
+  'info': "Delete temporary email address!"
+}, async (message) => {
+  try {
+    const senderId = message.sender;
+    if (secmailData[senderId]) {
+      delete secmailData[senderId];
+      await message.reply(langText("new", "email_deleted", {}, message.userLang || global.currentUserLang));
+    } else {
+      await message.reply(langText("new", "no_email", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    console.log(error);
+    await message.reply(langText("new", "request_denied", {}, message.userLang || global.currentUserLang));
+  }
+});
+
+// Temporary email API helper functions
+const tempmail = {
+  "create": async () => {
+    try {
+      let response = await fetch("https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1");
+      if (!response.ok) {
+        throw new Error("HTTP error! status: " + response.status);
+      }
+      let data = await response.json();
+      return data;
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
+  },
+  "mails": async (login, domain) => {
+    const apiUrl = `https://www.1secmail.com/api/v1/?action=getMessages&login=${login}&domain=${domain}`;
+    try {
+      let response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error("HTTP error! status: " + response.status);
+      }
+      let data = await response.json();
+      return data;
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
+  },
+  emailContent: async (login, domain, emailId) => {
+    const apiUrl = `https://www.1secmail.com/api/v1/?action=readMessage&login=${login}&domain=${domain}&id=${emailId}`;
+    try {
+      let response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error("HTTP error! status: " + response.status);
+      }
+      let data = await response.json();
+      const htmlContent = data.htmlBody;
+      console.log({ 'htmlContent': htmlContent });
+      const $ = cheerio.load(htmlContent);
+      const textContent = $.text();
+      return textContent;
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
+  }
+};

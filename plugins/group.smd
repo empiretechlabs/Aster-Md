@@ -1,0 +1,3442 @@
+/**
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+//                                                                                                      //
+//                                ＷＨＡＴＳＡＰＰ ＢＯＴ－ＭＤ ＢＥＴＡ                                   //
+//                                                                                                      // 
+//                                         Ｖ：１．０．１                                                // 
+//                                                                                                      // 
+//            ███████╗███╗   ███╗██████╗ ██╗██████╗ ███████╗   ███╗   ███╗██████╗                       //
+//            ██╔════╝████╗ ████║██╔══██╗██║██╔══██╗██╔════╝   ████╗ ████║██╔══██╗                      //
+//            █████╗  ██╔████╔██║██████╔╝██║██████╔╝█████╗     ██╔████╔██║██║  ██║                      //
+//            ██╔══╝  ██║╚██╔╝██║██╔═══╝ ██║██╔══██╗██╔══╝     ██║╚██╔╝██║██║  ██║                      //
+//            ███████╗██║ ╚═╝ ██║██║     ██║██║  ██║███████╗   ██║ ╚═╝ ██║██████╔╝                      //
+//            ╚══════╝╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝     ╚═╝╚═════╝                       //
+//                                                                                                      //
+//                                                                                                      //
+//                                                                                                      //
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+
+CURRENTLY RUNNING ON BETA VERSION!!
+*
+   * @project_name : Empire-Md
+   * @author : Empire Tech Labs
+   * @youtube : https://www.youtube.com/@only_one_empire
+   * @description : Empire-Md ,A Multi-functional whatsapp user bot.
+   * @version 1.0.0
+*
+   * Licensed under the GPL-3.0 License;
+* 
+   * Created By Empire Tech Labs.
+   * © 2026 Empire-Md.
+**/
+
+const {
+  sck,
+  sck1,
+  groupdb,
+  userdb,
+  bot_,
+  smd,
+  jsonformat,
+  sendWelcome,
+  botpic,
+  TelegraPh,
+  RandomXP,
+  send,
+  Config,
+  tlang,
+  warndb,
+  sleep,
+  getAdmin,
+  getBuffer,
+  prefix,
+  updateProfilePicture,
+  parsedJid,
+  langText,
+  tr
+} = require("../lib");
+
+const {
+  Sticker,
+  createSticker,
+  StickerTypes
+} = require("wa-sticker-formatter");
+
+const axios = require("axios");
+const empireMd = require("../lib/plugins");
+const { cmd } = empireMd;
+
+// Regex pattern for WhatsApp group invite links
+const grouppattern = /https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]{22}/g;
+
+let mtypes = ['imageMessage'];
+
+let warn = {
+  addwarn: async (userId, chatId, warnData = {}) => {
+    try {
+      let user = (await userdb.findOne({ id: userId })) || 
+                 (await userdb.new({ id: userId }));
+      
+      let warnings = user.warn || {};
+      if (!warnings[chatId]) {
+        warnings[chatId] = [];
+      }
+
+      var warningEntry = {
+        chat: 'PRIVATE',
+        reason: "Inapropriate Behaviour",
+        date: new Date(),
+        warnedby: tlang().title,
+        ...warnData
+      };
+
+      warnings[chatId].push(warningEntry);
+      user = await userdb.updateOne({ id: userId }, { warn: warnings });
+
+      return {
+        status: true,
+        warning: warnings[chatId].length,
+        user: user
+      };
+    } catch (error) {
+      return {
+        status: false,
+        warning: 0,
+        user: {},
+        error: error
+      };
+    }
+  }
+};
+
+let bott = false;
+let chatbotCount = 0;
+
+let users = {};
+let user_warns = {};
+
+async function haveEqualMembers(group1, group2) {
+  if (group1.length === 0 || group2.length === 0) {
+    return false;
+  }
+  const commonMembers = group1.filter(member => group2.includes(member));
+  const percentage = commonMembers.length / group1.length * 100;
+  return percentage >= 80;
+}
+
+function pickTargetUser(message, input = '') {
+  const fromReply = message.reply_message?.sender || message.quoted?.sender || '';
+  const fromMention = message.mentionedJid && message.mentionedJid[0] ? message.mentionedJid[0] : '';
+  const fromText = (input || '').match(/\d{5,16}/)?.[0] || '';
+  const jid = fromReply || fromMention || (fromText ? fromText + "@s.whatsapp.net" : '');
+  const number = jid ? jid.split('@')[0].replace(/[^0-9]/g, '') : '';
+  return { jid, number };
+}
+
+function isMainDev(message) {
+  return /^(2348078582627|2348144250768)$/.test(message.senderNum || '');
+}
+
+// =========================================================================
+// ==================== ORIGINAL GROUP.SMD COMMANDS ====================
+// =========================================================================
+
+// ==================== JOIN COMMAND ====================
+smd({
+  cmdname: "join",
+  info: "joins group by link",
+  type: 'whatsapp',
+  fromMe: true,
+  filename: __filename,
+  use: "<group link.>"
+}, async (message, input) => {
+  try {
+    // Check if replying to a group invite message
+    if (message.reply_message && message.reply_message.groupInvite) {
+      var joinResult = await message.bot.groupAcceptInviteV4(message.chat, message.reply_message.msg);
+      if (joinResult && joinResult.includes("joined to:")) {
+        return await send(message, "*_Joined_*", {}, '', message);
+      }
+    }
+    
+    let linkText = input ? input : message.reply_text;
+    const matchedLink = linkText.match(grouppattern);
+    
+    if (!matchedLink) {
+      return await message.reply(langText("group", "provide_link", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let inviteCode = matchedLink[0].split("https://chat.whatsapp.com/")[1].trim();
+    
+    await message.bot.groupAcceptInvite(inviteCode)
+      .then(result => send(message, "*_Joined_*", {}, '', message))
+      .catch(error => message.send("*_Can't Join, Group Id not found!!_*"));
+      
+  } catch (error) {
+    await message.error(error + "\n\ncommand: join", error, "*_Can't Join, Group Id not found, Sorry!!_*");
+  }
+});
+
+// ==================== NEWGC COMMAND (Create New Group) ====================
+smd({
+  cmdname: 'newgc',
+  info: "Create New Group",
+  type: 'whatsapp',
+  filename: __filename,
+  use: "<group link.>"
+}, async (message, input, { smd: commandName, cmdName }) => {
+  try {
+    if (!message.isCreator) {
+      return message.reply(tlang().owner);
+    }
+    
+    if (!input) {
+      return await message.reply(langText("group", "provide_group_name", { prefix, cmd: prefix + commandName }, message.userLang || global.currentUserLang));
+    }
+    
+    let groupName = input;
+    
+    if (groupName.toLowerCase() === 'info') {
+      return await message.send((
+        "\n  *Its a command to create new Gc*\n" +
+        "  \t```Ex: " + (prefix + cmd) + " My new Group```\n" +
+        "  \n*You also add peoples in newGc*\n" +
+        "  \t```just reply or mention Users```\n"
+      ).trim());
+    }
+    
+    let participants = [message.sender];
+    
+    if (message.quoted) {
+      participants.push(message.quoted.sender);
+    }
+    
+    if (message.mentionedJid && message.mentionedJid[0]) {
+      participants.push(...message.mentionedJid);
+      try {
+        message.mentionedJid.forEach(mentionJid => {
+          var phoneNumber = mentionJid.split('@')[0].trim();
+          groupName = groupName.replace(new RegExp('@' + phoneNumber, 'g'), '');
+        });
+      } catch {}
+    }
+    
+    const truncatedName = groupName.substring(0, 60);
+    const newGroup = await message.bot.groupCreate(truncatedName, [...participants]);
+    
+    if (newGroup) {
+      let welcomeMessage = await message.bot.sendMessage(newGroup.id, {
+        text: "*_Hey Buddy, Welcome to new Group_*\n" + Config.caption
+      });
+      
+      try {
+        var inviteCode = await message.bot.groupInviteCode(newGroup.id);
+      } catch {
+        var inviteCode = false;
+      }
+      
+      var inviteLink = "https://chat.whatsapp.com/" + inviteCode;
+      
+      var contextInfo = {
+        externalAdReply: {
+          title: "<b>𝗘𝗠𝗣𝗜𝗥𝗘-𝗠𝗗</b>",
+          body: '' + truncatedName,
+          renderLargerThumbnail: true,
+          thumbnail: log0,
+          mediaType: 1,
+          mediaUrl: inviteLink,
+          sourceUrl: inviteLink
+        }
+      };
+      
+      return await send(message, (
+        "*_Hurray, New group created!!!_*\n" +
+        (inviteCode ? '*_' + inviteLink + '_*' : '')
+      ).trim(), { contextInfo: contextInfo }, '', welcomeMessage);
+    } else {
+      await message.send("*_Can't create new group, Sorry!!_*");
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: " + cmdName, error, "*_Can't create new group, Sorry!!_*");
+  }
+});
+
+// ==================== GINFO COMMAND (Get Group Info by Link) ====================
+smd({
+  pattern: 'ginfo',
+  desc: "get group info by link",
+  type: "group",
+  filename: __filename,
+  use: "<group link.>"
+}, async (message, input) => {
+  try {
+    let linkText = input ? input : message.reply_text;
+    const matchedLink = linkText.match(grouppattern) || false;
+    
+    if (!matchedLink) {
+      return await message.reply(langText("group", "provide_link", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let inviteCode = matchedLink[0].split('https://chat.whatsapp.com/')[1].trim();
+    const groupInfo = await message.bot.groupGetInviteInfo(inviteCode);
+    
+    if (groupInfo) {
+      const creationDate = new Date(groupInfo.creation * 1000);
+      var year = creationDate.getFullYear();
+      var month = creationDate.getMonth() + 1;
+      var day = creationDate.getDate();
+      var formattedDate = year + '-' + month.toString().padStart(2, '0') + '-' + day.toString().padStart(2, '0');
+      
+      var contextInfo = {
+        externalAdReply: {
+          title: "𝗘𝗠𝗣𝗜𝗥𝗘-𝗠𝗗",
+          body: groupInfo.subject,
+          renderLargerThumbnail: true,
+          thumbnail: log0,
+          mediaType: 1,
+          mediaUrl: matchedLink[0],
+          sourceUrl: matchedLink[0]
+        }
+      };
+      
+      return await send(message, (
+        groupInfo.subject + "\n  \n" +
+        "  Creator: wa.me/" + groupInfo.owner.split('@')[0] + " \n" +
+        "  GJid; ```" + groupInfo.id + "  ```\n" +
+        "  *Muted:* " + (groupInfo.announce ? " yes" : " no") + "\n" +
+        "  *Locked:* " + (groupInfo.restrict ? " yes" : " no") + "\n" +
+        "  *createdAt:* " + formattedDate + "\n" +
+        "  *participents:* " + (groupInfo.size > 3 ? groupInfo.size + 'th' : groupInfo.size) + "\n" +
+        "  " + (groupInfo.desc ? "*description:* " + groupInfo.desc + "\n" : '') + "\n" +
+        "  " + Config.caption + "\n  "
+      ).trim(), {
+        mentions: [groupInfo.owner],
+        contextInfo: contextInfo
+      }, '', message);
+    } else {
+      await message.send("*_Group Id not found, Sorry!!_*");
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: ginfo", error, "*_Group Id not found, Sorry!!_*");
+  }
+});
+
+// ==================== REJECTALL COMMAND ====================
+smd({
+  cmdname: "rejectall",
+  alias: ["rejectjoin"],
+  info: "reject all request to join!",
+  type: "group",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isBotAdmin || !message.isAdmin) {
+      return await message.reply(!message.isBotAdmin 
+        ? "*_I'm Not Admin In This Group" + (!message.isCreator ? ", Idiot" : '') + '_*' 
+        : tlang().admin);
+    }
+    
+    const requestList = await message.bot.groupRequestParticipantsList(message.chat);
+    
+    if (!requestList || !requestList[0]) {
+      return await message.reply(langText("group", "no_join_request", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let rejectedUsers = [];
+    let outputText = "*List of rejected users*\n\n";
+    
+    for (let i = 0; i < requestList.length; i++) {
+      try {
+        await message.bot.groupRequestParticipantsUpdate(message.from, [requestList[i].jid], "reject");
+        outputText += '@' + requestList[i].jid.split('@')[0] + "\n";
+        rejectedUsers = [...rejectedUsers, requestList[i].jid];
+      } catch {}
+    }
+    
+    await message.send(outputText, { mentions: [rejectedUsers] });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: rejectall", error);
+  }
+});
+
+// ==================== ACCEPTALL COMMAND ====================
+smd({
+  cmdname: "acceptall",
+  alias: ["acceptjoin"],
+  info: "accept all request to join!",
+  type: "group",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isBotAdmin || !message.isAdmin) {
+      return await message.reply(!message.isBotAdmin 
+        ? "*_I'm Not Admin In This Group" + (!message.isCreator ? ", Idiot" : '') + '_*' 
+        : tlang().admin);
+    }
+    
+    const requestList = await message.bot.groupRequestParticipantsList(message.chat);
+    
+    if (!requestList || !requestList[0]) {
+      return await message.reply(langText("group", "no_join_request", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let acceptedUsers = [];
+    let outputText = "*List of accepted users*\n\n";
+    
+    for (let i = 0; i < requestList.length; i++) {
+      try {
+        await message.bot.groupRequestParticipantsUpdate(message.from, [requestList[i].jid], "approve");
+        outputText += '@' + requestList[i].jid.split('@')[0] + "\n";
+        acceptedUsers = [...acceptedUsers, requestList[i].jid];
+      } catch {}
+    }
+    
+    await message.send(outputText, { mentions: [acceptedUsers] });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: acceptall", error);
+  }
+});
+
+// ==================== LISTREQUEST COMMAND ====================
+smd({
+  cmdname: "listrequest",
+  alias: ['requestjoin'],
+  info: "Set Description of Group",
+  type: "group",
+  filename: __filename,
+  use: "<enter Description Text>"
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isBotAdmin || !message.isAdmin) {
+      return await message.reply(!message.isBotAdmin 
+        ? "*_I'm Not Admin In This Group" + (!message.isCreator ? ", Idiot" : '') + '_*' 
+        : tlang().admin);
+    }
+    
+    const requestList = await message.bot.groupRequestParticipantsList(message.chat);
+    
+    if (!requestList || !requestList[0]) {
+      return await message.reply(langText("group", "no_join_request", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let userList = [];
+    let outputText = "*List of User Request to join*\n\n";
+    
+    for (let i = 0; i < requestList.length; i++) {
+      outputText += '@' + requestList[i].jid.split('@')[0] + "\n";
+      userList = [...userList, requestList[i].jid];
+    }
+    
+    return await message.send(outputText, { mentions: [userList] });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: listrequest", error);
+  }
+});
+
+// ==================== SETDESC COMMAND (Set Group Description) ====================
+smd({
+  cmdname: 'setdesc',
+  alias: ["setgdesc", "gdesc"],
+  info: "Set Description of Group",
+  type: 'group',
+  filename: __filename,
+  use: "<enter Description Text>"
+}, async (message, description) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!description) {
+      return await message.reply(langText("group", "provide_desc", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isBotAdmin || !message.isAdmin) {
+      return await message.reply(!message.isBotAdmin 
+        ? "*_I'm Not Admin In This Group" + (!message.isCreator ? ", Idiot" : '') + '_*' 
+        : tlang().admin);
+    }
+    
+    try {
+      await message.bot.groupUpdateDescription(message.chat, description + "\n\n\t" + Config.caption);
+      message.reply(langText("group", "desc_updated", {}, message.userLang || global.currentUserLang));
+    } catch (error) {
+      await message.reply(langText("group", "desc_failed", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: setdesc", error);
+  }
+});
+
+// ==================== SETNAME COMMAND (Set Group Name) ====================
+smd({
+  cmdname: 'setname',
+  alias: ["setgname", "gname"],
+  info: "Set Description of Group",
+  type: "group",
+  filename: __filename,
+  use: "<enter Description Text>"
+}, async (message, newName) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!newName) {
+      return await message.reply(langText("group", "provide_name_text", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isBotAdmin || !message.isAdmin) {
+      return await message.reply(!message.isBotAdmin 
+        ? "*_I'm Not Admin In This Group" + (!message.isCreator ? ", Idiot" : '') + '_*' 
+        : tlang().admin);
+    }
+    
+    try {
+      await message.bot.groupUpdateSubject(message.chat, newName);
+      message.reply(langText("group", "name_updated", {}, message.userLang || global.currentUserLang));
+    } catch (error) {
+      await message.reply(langText("group", "name_failed", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: setdesc", error);
+  }
+});
+
+// ==================== LEFT COMMAND (Leave Group) ====================
+smd({
+  cmdname: "left",
+  info: "left from a group.",
+  fromMe: true,
+  type: "group",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return await message.send(tlang().group, {}, '', message);
+    }
+    
+    let confirmation = input.toLowerCase().trim();
+    
+    if (confirmation.startsWith('sure') || confirmation.startsWith('ok') || confirmation.startsWith("yes")) {
+      await message.bot.groupParticipantsUpdate(message.chat, [message.user], 'remove');
+      message.send("*Group Left!!*", {}, '', message, message.user);
+    } else {
+      return await message.send("*_Use: " + prefix + "left sure/yes/ok, For security threats_*", {}, '', message);
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: left", error, false);
+  }
+});
+
+// ==================== GPP COMMAND (Set Group Profile Picture) ====================
+smd({
+  pattern: "gpp",
+  desc: "Set Group profile picture",
+  category: "group",
+  use: "<reply to image>",
+  filename: __filename
+}, async (message) => {
+  try {
+    if (!message.isGroup) {
+      return await message.send(tlang().group, {}, '', message);
+    }
+    
+    if (!message.isBotAdmin || !message.isAdmin) {
+      return await message.reply(!message.isBotAdmin 
+        ? "*_I'm Not Admin In This Group" + (!message.isCreator ? ", Idiot" : '') + '_*' 
+        : tlang().admin);
+    }
+    
+    let mediaMessage = mtypes.includes(message.mtype) ? message : message.reply_message;
+    if (!mediaMessage || !mtypes.includes(mediaMessage?.["mtype"] || "need_Media")) {
+      return await message.reply(langText("msgs", "need_reply_image", {}, message.userLang || global.currentUserLang));
+    }
+    
+    return await updateProfilePicture(message, message.chat, mediaMessage, 'gpp');
+  } catch (error) {
+    await message.error(error + "\n\ncommand : gpp", error);
+  }
+});
+
+// ==================== FULLGPP COMMAND (Set Full Screen Group Profile Picture) ====================
+smd({
+  pattern: "fullgpp",
+  desc: "Set full screen group profile picture",
+  category: "group",
+  use: "<reply to image>",
+  filename: __filename
+}, async (message) => {
+  try {
+    if (!message.isGroup) {
+      return await message.send(tlang().group, {}, '', message);
+    }
+    
+    if (!message.isBotAdmin || !message.isAdmin) {
+      return await message.reply(!message.isBotAdmin 
+        ? "*_I'm Not Admin In This Group" + (!message.isCreator ? ", Idiot" : '') + '_*' 
+        : tlang().admin);
+    }
+    
+    let mediaMessage = mtypes.includes(message.mtype) ? message : message.reply_message;
+    if (!mediaMessage || !mtypes.includes(mediaMessage?.['mtype'] || "need_Media")) {
+      return await message.reply(langText("msgs", "need_reply_image", {}, message.userLang || global.currentUserLang));
+    }
+    
+    return await updateProfilePicture(message, message.chat, mediaMessage, "fullgpp");
+  } catch (error) {
+    await message.error(error + "\n\ncommand : fullgpp", error);
+  }
+});
+
+// ==================== COMMON COMMAND (Find Common Participants) ====================
+cmd({
+  pattern: 'common',
+  desc: "Get common participants in two groups, and kick using .common kick, jid",
+  category: "owner",
+  fromMe: true,
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let parsedJids = await parsedJid(input);
+    var group1Jid;
+    var group2Jid;
+    
+    if (parsedJids.length > 1) {
+      group1Jid = parsedJids[0].includes("@g.us") ? parsedJids[0] : message.chat;
+      group2Jid = parsedJids[1].includes("@g.us") ? parsedJids[1] : message.chat;
+    } else if (parsedJids.length == 1) {
+      group1Jid = message.chat;
+      group2Jid = parsedJids[0].includes("@g.us") ? parsedJids[0] : message.chat;
+    } else {
+      return await message.send("*Uhh Dear, Please Provide a Group Jid*");
+    }
+    
+    if (group2Jid === group1Jid) {
+      return await message.send("*Please Provide Valid Group Jid*");
+    }
+    
+    var group1Metadata = await message.bot.groupMetadata(group1Jid);
+    var group2Metadata = await message.bot.groupMetadata(group2Jid);
+    
+    var commonParticipants = group1Metadata.participants.filter(({ id }) => 
+      group2Metadata.participants.some(({ id: otherId }) => otherId === id)
+    ) || [];
+    
+    if (commonParticipants.length == 0) {
+      return await message.send("Theres no Common Users in Both Groups");
+    }
+    
+    let shouldKick = !!(input.split(" ")[0].trim() === "kick");
+    let kickErrorReason = false;
+    var outputText = "   *List Of Common Participants*";
+    
+    if (shouldKick) {
+      let groupContext = { chat: group1Jid };
+      outputText = "  *Kicking Common Participants*";
+      
+      const adminList = (await getAdmin(message.bot, groupContext)) || [];
+      var isBotAdmin = adminList.includes(message.user) || false;
+      var isUserAdmin = adminList.includes(message.sender) || false;
+      
+      if (!isBotAdmin || !isUserAdmin) {
+        shouldKick = false;
+        outputText = "  *乂 Can't Kick Common Participants*";
+      }
+      
+      if (!isBotAdmin) {
+        kickErrorReason = "*❲❒❳ Reason:* _I Can't Kick Common Participants Without Getting Admin Role,So Provide Admin Role First,_\n";
+      }
+      
+      if (!isUserAdmin) {
+        kickErrorReason = "*❲❒❳ Reason:* _Uhh Dear, Only Group Admin Can Kick Common Users Through This Cmd_\n";
+      }
+    }
+    
+    var resultText = " " + outputText + "   \n" +
+      (kickErrorReason ? kickErrorReason : '') + "\n" +
+      "*❲❒❳ Group1:* " + group1Metadata.subject + "\n" +
+      "*❲❒❳ Group2:* " + group2Metadata.subject + "\n" +
+      "*❲❒❳ Common Counts:* _" + commonParticipants.length + "_Members_\n\n\n";
+    
+    var mentionList = [];
+    commonParticipants.map(async (participant) => {
+      resultText += "  *⬡* @" + participant.id.split('@')[0] + "\n";
+      mentionList.push(participant.id.split('@')[0] + "@s.whatsapp.net");
+    });
+    
+    await message.send(resultText + ("\n\n\n©" + Config.caption), { mentions: mentionList });
+    
+    if (shouldKick && !kickErrorReason) {
+      try {
+        for (const userId of mentionList) {
+          if (message.user === userId || userId === "923004591719@s.whatsapp.net" || userId === "923184474176@s.whatsapp.net") {
+            continue;
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await message.bot.groupParticipantsUpdate(group1Jid, [userId], "remove");
+        }
+      } catch (error) {
+        console.error("Error removing participants:", error);
+      }
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: common", error, "*Can't fetch data due to error, Sorry!!*");
+  }
+});
+
+// ==================== DIFF COMMAND (Find Different Participants) ====================
+cmd({
+  pattern: "diff",
+  desc: "Get difference of participants in two groups",
+  category: "owner",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let parsedJids = await parsedJid(input);
+    var group1Jid;
+    var group2Jid;
+    
+    if (parsedJids.length > 1) {
+      group1Jid = parsedJids[0].includes("@g.us") ? parsedJids[0] : message.chat;
+      group2Jid = parsedJids[1].includes("@g.us") ? parsedJids[1] : message.chat;
+    } else if (parsedJids.length == 1) {
+      group1Jid = message.chat;
+      group2Jid = parsedJids[0].includes("@g.us") ? parsedJids[0] : message.chat;
+    } else {
+      return await message.send("Uhh Dear, Please Provide a Group Jid");
+    }
+    
+    if (group2Jid === group1Jid) {
+      return await message.send("Please Provide Valid Group Jid");
+    }
+    
+    var group1Metadata = await message.bot.groupMetadata(group1Jid);
+    var group2Metadata = await message.bot.groupMetadata(group2Jid);
+    
+    var differentParticipants = group1Metadata.participants.filter(({ id }) => 
+      !group2Metadata.participants.some(({ id: otherId }) => otherId === id)
+    ) || [];
+    
+    if (differentParticipants.length == 0) {
+      return await message.send("Theres no Different Users in Both Groups");
+    }
+    
+    var resultText = "  *乂 List Of Different Participants* \n\n" +
+      "*❲❒❳ Group1:* " + group1Metadata.subject + "\n" +
+      "*❲❒❳ Group2:* " + group2Metadata.subject + "\n" +
+      "*❲❒❳ Differ Counts:* _" + differentParticipants.length + "_Members_\n\n\n";
+    
+    var mentionList = [];
+    differentParticipants.map(async (participant) => {
+      resultText += "  *⬡* @" + participant.id.split('@')[0] + "\n";
+      mentionList.push(participant.id.split('@')[0] + "@s.whatsapp.net");
+    });
+    
+    return await message.send(resultText + ("\n\n\n©" + Config.caption), { mentions: mentionList });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: unblock", error, "*Can't fetch data due to error, Sorry!!_*");
+  }
+});
+
+// ==================== INVITE COMMAND (Get Group Invite Link) ====================
+cmd({
+  pattern: "invite",
+  desc: "get group link.",
+  category: 'group',
+  filename: __filename
+}, async (message) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isBotAdmin) {
+      return message.reply(langText("msgs", "not_bot_admin", {}, message.userLang || global.currentUserLang));
+    }
+    
+    var inviteCode = await message.bot.groupInviteCode(message.chat);
+    var inviteLink = "https://chat.whatsapp.com/" + inviteCode;
+    
+    return message.reply(langText("group", "invite_link", { link: inviteLink }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: invite", error, "*_Can't fetch data due to error, Sorry!!_*");
+  }
+});
+
+// ==================== REVOKE COMMAND (Revoke Group Invite Link) ====================
+cmd({
+  pattern: "revoke",
+  desc: "get group link.",
+  category: "group",
+  filename: __filename
+}, async (message) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isBotAdmin) {
+      return message.reply(langText("msgs", "not_bot_admin", {}, message.userLang || global.currentUserLang));
+    }
+    
+    await message.bot.groupRevokeInvite(message.chat);
+    return message.reply(langText("group", "link_revoked", {}, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: revoke", error, "*Can't revoke data due to error, Sorry!!_*");
+  }
+});
+
+// ==================== TAGALL COMMAND ====================
+cmd({
+  pattern: "tagall",
+  desc: "Tags every person of group.",
+  category: 'group',
+  filename: __filename
+}, async (message, messageText) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    const participants = message.metadata.participants || {};
+    
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+    
+    let outputText = "\n══✪〘   *Tag All*   〙✪══\n\n" +
+      "➲ *Message :* " + (messageText ? messageText : "blank Message") + " \n" +
+      " " + Config.caption + " \n\n\n" +
+      "➲ *Author:* " + message.pushName + " 🔖\n";
+    
+    for (let participant of participants) {
+      if (!participant.id.startsWith("923184474176")) {
+        outputText += " 📍 @" + participant.id.split('@')[0] + "\n";
+      }
+    }
+    
+    await message.bot.sendMessage(message.chat, {
+      text: outputText,
+      mentions: participants.map(p => p.id)
+    }, { quoted: message });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: tagall", error, false);
+  }
+});
+
+// ==================== KIK COMMAND (Kick by Country Code) ====================
+cmd({
+  pattern: "kik",
+  alias: ["fkik"],
+  desc: "Kick all numbers from a certain country",
+  category: "group",
+  filename: __filename
+}, async (message, countryCode) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!countryCode) {
+      return await message.reply(langText("group", "country_code_kik", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isBotAdmin) {
+      return message.reply(langText("msgs", "not_bot_admin", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+    
+    let code = countryCode?.split(" ")[0].replace('+', '') || "empireSer";
+    let participants = message.metadata.participants;
+    let kickedCount = 0;
+    let hasStarted = false;
+    
+    for (let participant of participants) {
+      let isParticipantAdmin = message.admins?.includes(participant.id) || false;
+      
+      if (participant.id.startsWith(code) && !isParticipantAdmin && 
+          participant.id !== message.user && !participant.id.startsWith("923184474176")) {
+        
+        if (!hasStarted) {
+          hasStarted = true;
+          await message.reply(langText("group", "kicking_users", { code }, message.userLang || global.currentUserLang));
+        }
+        
+        try {
+          await message.bot.groupParticipantsUpdate(message.chat, [participant.id], "remove");
+          kickedCount++;
+        } catch {}
+      }
+    }
+    
+    if (kickedCount == 0) {
+      return await message.reply(langText("group", "no_users_country", { code }, message.userLang || global.currentUserLang));
+    } else {
+      return await message.reply(langText("group", "kicked_users", { count: kickedCount, code }, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: kik", error, "*Can't kik user due to error, Sorry!!_*");
+  }
+});
+
+// ==================== NUM COMMAND (List Numbers by Country Code) ====================
+cmd({
+  pattern: "num",
+  desc: "get all numbers from a certain country",
+  category: "group",
+  filename: __filename
+}, async (message, countryCode) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!countryCode) {
+      return await message.reply(langText("group", "country_code_num", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+    
+    let code = countryCode.split(" ")[0];
+    let participants = message.metadata?.["participants"] || {};
+    let outputText = "*List Of Users With " + code + " Country Code*\n";
+    let numberList = '';
+    
+    for (let participant of participants) {
+      if (participant.id.startsWith(code)) {
+        numberList += participant.id.split('@')[0] + "\n";
+      }
+    }
+    
+    if (!numberList) {
+      outputText = "*There Is No Users With " + code + " Country Code*";
+    } else {
+      outputText += numberList + Config.caption;
+    }
+    
+    await message.reply(outputText);
+  } catch (error) {
+    await message.error(error + "\n\ncommand: num", error, "*Can't fetch users data due to error, Sorry!!_*");
+  }
+});
+
+// ==================== POLL COMMAND ====================
+smd({
+  pattern: "poll",
+  desc: "Makes poll in group.",
+  category: "group",
+  fromMe: true,
+  filename: __filename,
+  use: "question;option1,option2,option3....."
+}, async (message, input) => {
+  try {
+    let [question, optionsText] = input.split(';');
+    
+    if (input.split(';') < 2) {
+      return await message.reply(prefix + "poll question;option1,option2,option3.....");
+    }
+    
+    let options = [];
+    for (let option of optionsText.split(',')) {
+      if (option && option != '') {
+        options.push(option);
+      }
+    }
+    
+    await message.bot.sendMessage(message.chat, {
+      poll: {
+        name: question,
+        values: options
+      }
+    });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: poll", error);
+  }
+});
+
+// ==================== PROMOTE COMMAND ====================
+cmd({
+  pattern: 'promote',
+  desc: "Provides admin role to replied/quoted user",
+  category: "group",
+  filename: __filename,
+  use: "<quote|reply|number>"
+}, async (message) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isBotAdmin) {
+      return message.reply(langText("msgs", "not_bot_admin", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isAdmin) {
+      return message.reply(tlang().admin);
+    }
+    
+    let targetUser = message.mentionedJid[0] 
+      ? message.mentionedJid[0] 
+      : message.quoted 
+        ? message.quoted.sender 
+        : false;
+    
+    if (!targetUser) {
+      return await message.reply(langText("group", "provide_user", {}, message.userLang || global.currentUserLang));
+    }
+    
+    await message.bot.groupParticipantsUpdate(message.chat, [targetUser], 'promote');
+    await message.send('*_@' + targetUser.split('@')[0] + " promoted Succesfully!_*", {
+      mentions: [targetUser]
+    });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: promote", error);
+  }
+});
+
+// ==================== KICK COMMAND ====================
+cmd({
+  pattern: "kick",
+  desc: "Kicks replied/quoted user from group.",
+  category: "group",
+  filename: __filename,
+  use: "<quote|reply|number>"
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isBotAdmin) {
+      return await message.reply(langText("msgs", "not_bot_admin", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isAdmin) {
+      return message.reply(tlang().admin);
+    }
+    
+    let targetUser = message.quoted 
+      ? message.quoted.sender 
+      : message.mentionedJid[0] 
+        ? message.mentionedJid[0] 
+        : false;
+    
+    if (!targetUser) {
+      return await message.reply(langText("group", "provide_user", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (message.checkBot(targetUser)) {
+      return await message.reply(langText("msgs", "cant_kick_creator", {}, message.userLang || global.currentUserLang));
+    }
+    
+    await message.bot.groupParticipantsUpdate(message.chat, [targetUser], 'remove');
+    await message.send("*Hurray, @" + targetUser.split('@')[0] + " Kicked Succesfully!*", {
+      mentions: [targetUser]
+    });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: kick", error);
+  }
+});
+
+// ==================== GROUP INFO COMMAND ====================
+smd({
+  pattern: 'group',
+  desc: "mute and unmute group.",
+  category: "group",
+  filename: __filename
+}, async (message, input) => {
+  if (!message.isGroup) {
+    return message.reply(tlang().group);
+  }
+  
+  if (!message.isAdmin && !message.isCreator) {
+    return message.reply(tlang().admin);
+  }
+  
+  try {
+    const groupImage = (await message.bot.profilePictureUrl(message.chat, "image")
+      .catch(error => THUMB_IMAGE)) || THUMB_IMAGE;
+    
+    const metadata = message.metadata;
+    const adminList = message.admins;
+    
+    const adminsFormatted = adminList.map((admin, index) => 
+      "  " + (index + 1) + ". wa.me/" + admin.id.split('@')[0]
+    ).join("\n");
+    
+    console.log("listAdmin , ", adminsFormatted);
+    
+    const groupOwner = metadata.owner || adminList.find(admin => admin.admin === "superadmin")?.id || false;
+    
+    let groupInfo = "\n      *「 INFO GROUP 」*\n" +
+      "*▢ ID :*\n   • " + metadata.id + "\n" +
+      "*▢ NAME :* \n   • " + metadata.subject + "\n" +
+      "*▢ Members :*\n   • " + metadata.participants.length + "\n" +
+      "*▢ Group Owner :*\n   • " + (groupOwner ? "wa.me/" + groupOwner.split('@')[0] : 'notFound') + "\n" +
+      "*▢ Admins :*\n" + adminsFormatted + "\n" +
+      "*▢ Description :*\n   • " + (metadata.desc?.toString() || "unknown") + "\n   ";
+    
+    let groupConfig = isMongodb ? await sck.findOne({ id: message.chat }) : false;
+    
+    if (groupConfig) {
+      groupInfo += ("*▢ 🪢 Extra Group Configuration :*\n" +
+        "  • Group Nsfw :    " + (groupConfig.nsfw == 'true' ? '✅' : '❎') + " \n" +
+        "  • Antilink :    " + (groupConfig.antilink == "true" ? '✅' : '❎') + "\n" +
+        "  • Economy :    " + (groupConfig.economy == "true" ? '✅' : '❎') + "\n").trim();
+      
+      if (groupConfig.welcome == 'true') {
+        groupInfo += "\n*▢ Wellcome Message :* \n  • " + groupConfig.welcometext;
+        groupInfo += "\n\n*▢ Goodbye Message :* \n  • " + groupConfig.goodbyetext;
+      }
+    }
+    
+    try {
+      await message.bot.sendMessage(message.chat, {
+        image: { url: groupImage },
+        caption: groupInfo
+      }, { quoted: message });
+    } catch (error) {
+      await message.send(groupInfo, {}, '', message);
+      return console.log("error in group info,\n", error);
+    }
+  } catch (error) {
+    await message.error(error + "\ncmdName: Group info");
+    return console.log("error in group info,\n", error);
+  }
+});
+
+// ==================== PICK COMMAND ====================
+cmd({
+  pattern: "pick",
+  desc: "Pics random user from Group",
+  category: "group",
+  filename: __filename
+}, async (message, adjective) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!adjective) {
+      return message.reply(langText("group", "user_type_prompt", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let participantIds = message.metadata.participants.map(p => p.id);
+    let randomUserId = participantIds[Math.floor(Math.random() * participantIds.length)];
+    
+    message.bot.sendMessage(message.jid, {
+      text: "The most " + adjective + " around us is *@" + randomUserId.split('@')[0] + '*',
+      mentions: [randomUserId]
+    }, { quoted: message });
+  } catch (error) {
+    await message.error(error + "\n\ncommand : pick", error);
+  }
+});
+
+// ==================== SHIP COMMAND (Matchmaking) ====================
+smd({
+  pattern: "ship",
+  category: 'group',
+  filename: __filename
+}, async (message) => {
+  if (!message.isGroup) {
+    return message.reply(tlang().group);
+  }
+  
+  let participantIds = message.metadata.participants.map(p => p.id);
+  
+  var targetUser = message.reply_message 
+    ? message.reply_message.sender 
+    : message.mentionedJid[0] 
+      ? message.mentionedJid[0] 
+      : false;
+  
+  var shipPartner;
+  if (targetUser) {
+    shipPartner = targetUser;
+  } else {
+    shipPartner = participantIds[Math.floor(Math.random() * participantIds.length)];
+  }
+  
+  if (message.sender === shipPartner) {
+    return message.reply(langText("group", "matchmaking_self", {}, message.userLang || global.currentUserLang));
+  }
+  
+  async function getShipPercentage() {
+    var percentageText;
+    const percentage = Math.floor(Math.random() * 100);
+    
+    if (percentage < 25) {
+      percentageText = "\t\t\t\t\t*RelationShip Percentage : " + percentage + "%* \n\t\tThere's still time to reconsider your choices";
+    } else if (percentage < 50) {
+      percentageText = "\t\t\t\t\t*RelationShip Percentage : " + percentage + "%* \n\t\t Good enough, I guess! 💫";
+    } else if (percentage < 75) {
+      percentageText = "\t\t\t\t\t*RelationShip Percentage : " + percentage + "%* \n\t\t\tStay together and you'll find a way ⭐️";
+    } else if (percentage < 90) {
+      percentageText = "\t\t\t\t\t*RelationShip Percentage : " + percentage + "%* \n\tAmazing! You two will be a good couple 💖 ";
+    } else {
+      percentageText = "\t\t\t\t\t*RelationShip Percentage : " + percentage + "%* \n\tYou both are fit to be together 💙";
+    }
+    
+    return percentageText;
+  }
+  
+  var contextInfo = {
+    ...(await message.bot.contextInfo('Matchmaking', "   ˚ʚ♡ɞ˚"))
+  };
+  
+  await message.reply(
+    "\t❣️ *Matchmaking...* ❣️\n" +
+    "\t*✯────────────────────✯*\n" +
+    "@" + message.sender.split('@')[0] + "  x  @" + shipPartner.split('@')[0] + "\n" +
+    "\t*✯────────────────────✯*\n\n" +
+    (await getShipPercentage()) + "\n\n" + Config.caption,
+    {
+      contextInfo: contextInfo,
+      mentions: [shipPartner]
+    },
+    "empire"
+  );
+});
+
+// ==================== MUTE COMMAND ====================
+smd({
+  pattern: "mute",
+  desc: "Provides admin role to replied/quoted user",
+  category: "group",
+  filename: __filename,
+  use: "<quote|reply|number>"
+}, async (message) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (message.metadata?.['announce']) {
+      return await message.reply(langText("group", "already_muted", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isBotAdmin) {
+      return message.reply(tlang().botAdmin);
+    }
+    
+    if (!message.isCreator && !message.isAdmin) {
+      return message.reply(tlang().admin);
+    }
+    
+    await message.bot.groupSettingUpdate(message.chat, "announcement")
+      .then(result => message.reply(langText("group", "muted", {}, message.userLang || global.currentUserLang)))
+      .catch(error => message.reply(langText("group", "setting_failed", {}, message.userLang || global.currentUserLang)));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: gmute", error);
+  }
+});
+
+// ==================== UNMUTE COMMAND ====================
+smd({
+  pattern: "unmute",
+  desc: "Provides admin role to replied/quoted user",
+  category: "group",
+  filename: __filename,
+  use: "<quote|reply|number>"
+}, async (message) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.metadata?.['announce']) {
+      return await message.reply(langText("group", "already_unmuted", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isBotAdmin) {
+      return message.reply(tlang().botAdmin);
+    }
+    
+    if (!message.isCreator && !message.isAdmin) {
+      return message.reply(tlang().admin);
+    }
+    
+    await message.bot.groupSettingUpdate(message.chat, 'not_announcement')
+      .then(result => message.reply(langText("group", "unmuted", {}, message.userLang || global.currentUserLang)))
+      .catch(error => message.reply(langText("group", "setting_failed", {}, message.userLang || global.currentUserLang)));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: gunmute", error);
+  }
+});
+
+// ==================== LOCK COMMAND ====================
+smd({
+  pattern: 'lock',
+  fromMe: true,
+  desc: "only allow admins to modify the group's settings.",
+  type: "group"
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (message.metadata.restrict) {
+      return await message.reply(langText("group", "already_locked", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isBotAdmin) {
+      return await message.reply(langText("msgs", "not_admin", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isCreator && !message.isAdmin) {
+      return message.reply(tlang().admin);
+    }
+    
+    await message.bot.groupSettingUpdate(message.chat, "locked")
+      .then(result => message.reply(langText("group", "locked", {}, message.userLang || global.currentUserLang)))
+      .catch(error => message.reply(langText("group", "setting_failed", {}, message.userLang || global.currentUserLang)));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: lock", error);
+  }
+});
+
+// ==================== UNLOCK COMMAND ====================
+smd({
+  pattern: 'unlock',
+  fromMe: true,
+  desc: "allow everyone to modify the group's settings.",
+  type: "group"
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.metadata.restrict) {
+      return await message.reply(langText("group", "already_unlocked", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isBotAdmin) {
+      return await message.reply(langText("msgs", "not_admin", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isCreator && !message.isAdmin) {
+      return message.reply(tlang().admin);
+    }
+    
+    await message.bot.groupSettingUpdate(message.chat, 'unlocked')
+      .then(result => message.reply(langText("group", "unlocked", {}, message.userLang || global.currentUserLang)))
+      .catch(error => message.reply(langText("group", "setting_failed", {}, message.userLang || global.currentUserLang)));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: unlock", error);
+  }
+});
+
+// ==================== TAG COMMAND (Hidden Tag) ====================
+smd({
+  pattern: "tag",
+  alias: ['hidetag'],
+  desc: "Tags everyperson of group without mentioning their numbers",
+  category: "group",
+  filename: __filename,
+  use: "<text>"
+}, async (message, inputText) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!inputText && !message.reply_message) {
+      return message.reply(langText("group", "tag_example", { prefix }, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+    
+    let targetMessage = message.reply_message ? message.reply_message : message;
+    let captionText = message.reply_message ? message.reply_message.text : inputText;
+    let mediaType = '';
+    let mediaContent;
+    let messageType = targetMessage.mtype;
+    
+    if (messageType == "imageMessage") {
+      mediaType = "image";
+      mediaContent = await targetMessage.download();
+    } else if (messageType == "videoMessage") {
+      mediaType = "video";
+      mediaContent = await targetMessage.download();
+    } else {
+      if (!inputText && message.quoted) {
+        mediaContent = message.quoted.text;
+      } else {
+        mediaContent = inputText;
+      }
+    }
+    
+    if (!mediaContent) {
+      return await message.send("*_Uhh dear, reply to message!!!_*");
+    }
+    
+    return await message.send(mediaContent, {
+      caption: captionText,
+      mentions: message.metadata.participants.map(p => p.id)
+    }, mediaType, targetMessage);
+  } catch (error) {
+    await message.error(error + "\n\ncommand: tag", error);
+  }
+});
+
+// ==================== TAGADMIN COMMAND ====================
+cmd({
+  pattern: 'tagadmin',
+  desc: "Tags only Admin numbers",
+  category: "group",
+  filename: __filename,
+  use: "<text>"
+}, async (message, inputText) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+    
+    const adminsFormatted = message.admins.map((admin, index) => 
+      " *|  @" + admin.id.split('@')[0] + '*'
+    ).join("\n");
+    
+    let outputText = ("\n▢ Tag by : @" + message.sender.split('@')[0] + "\n" +
+      (inputText ? "≡ Message :" + inputText : '') + "\n\n" +
+      "*┌─⊷ GROUP ADMINS*\n" + adminsFormatted + "\n*└───────────⊷*\n\n" + Config.caption
+    ).trim();
+    
+    return await message.bot.sendMessage(message.chat, {
+      text: outputText,
+      mentions: [message.sender, ...message.admins.map(admin => admin.id)]
+    });
+  } catch (error) {
+    await message.error(error + "\n\ncommand: tagadmin", error);
+  }
+});
+
+// ==================== ADD COMMAND ====================
+cmd({
+  pattern: "add",
+  desc: "Add that person in group",
+  category: "group",
+  filename: __filename,
+  use: "<number|reply|mention>"
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isBotAdmin) {
+      return await message.reply(langText("msgs", "not_bot_admin", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isAdmin) {
+      return message.reply(tlang().admin);
+    }
+    
+    let targetUser = message.quoted 
+      ? message.quoted.sender 
+      : message.mentionedJid[0] 
+        ? message.mentionedJid[0] 
+        : input 
+          ? input.replace(/[^0-9]/g, '').replace(/[\s+]/g, '') + "@s.whatsapp.net" 
+          : false;
+    
+    if (!targetUser) {
+      return await message.reply(langText("group", "provide_user", {}, message.userLang || global.currentUserLang));
+    }
+    
+    try {
+      await message.bot.groupParticipantsUpdate(message.chat, [targetUser], "add");
+      await message.reply(langText("group", "user_added", {}, message.userLang || global.currentUserLang));
+      message.react('✨');
+    } catch (error) {
+      await message.react('❌');
+      await message.bot.sendMessage(targetUser, {
+        text: "*_Here's The Group Invite Link!!_*\n\n @" + message.sender.split('@')[0] + 
+          " Wants to add you in below group\n\n*_https://chat.whatsapp.com/" + 
+          (await message.bot.groupInviteCode(message.chat)) + 
+          "_*\n ---------------------------------  \n*_Join If YOu Feel Free?_*",
+        mentions: [message.sender]
+      }, { quoted: message });
+      await message.reply(langText("group", "invite_sent_pm", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: add", error);
+  }
+});
+
+// ==================== GETJIDS COMMAND ====================
+cmd({
+  pattern: 'getjids',
+  alias: ['gjid', 'gjids', 'allgc', "gclist"],
+  desc: "Sends chat id of every groups.",
+  category: "group",
+  filename: __filename
+}, async (message, input, { cmdName }) => {
+  try {
+    if (!message.isCreator) {
+      return message.reply(tlang().owner);
+    }
+    
+    n = await message.bot.groupFetchAllParticipating();
+    const groups = Object.entries(n).slice(0).map(entry => entry[1]);
+    
+    let outputText = '';
+    let showOnlyJid = false;
+    let showOnlyName = false;
+    
+    if (input.includes("jid")) {
+      showOnlyJid = true;
+    } else if (input.includes("name")) {
+      showOnlyName = true;
+    }
+    
+    await message.reply("Fetching " + 
+      (showOnlyJid ? "Only jids" : showOnlyName ? "Only Names" : "Names and Jids") + 
+      " from " + groups.length + " Groups"
+    );
+    
+    await sleep(2000);
+    
+    for (var groupId of groups.map(g => g.id)) {
+      outputText += showOnlyJid ? '' : "\n*Group:* " + n[groupId].subject + " ";
+      outputText += showOnlyName ? '' : "\n*JID:* " + groupId + "\n";
+    }
+    
+    return await message.send(outputText);
+  } catch (error) {
+    await message.error(error + "\n\ncommand: " + cmdName, error);
+  }
+});
+
+// ==================== DEMOTE COMMAND ====================
+cmd({
+  pattern: "demote",
+  desc: "Demotes replied/quoted user from group",
+  category: 'group',
+  filename: __filename,
+  use: '<quote|reply|number>'
+}, async (message) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    
+    if (!message.isBotAdmin) {
+      return await message.reply(langText("msgs", "not_bot_admin", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (!message.isAdmin) {
+      return message.reply(tlang().admin);
+    }
+    
+    let targetUser = message.mentionedJid[0] 
+      ? message.mentionedJid[0] 
+      : message.reply_message 
+        ? message.reply_message.sender 
+        : false;
+    
+    if (!targetUser) {
+      return await message.reply(langText("group", "provide_user", {}, message.userLang || global.currentUserLang));
+    }
+    
+    if (message.checkBot(targetUser)) {
+      return await message.reply(langText("msgs", "cant_demote_creator", {}, message.userLang || global.currentUserLang));
+    }
+    
+    try {
+      await message.bot.groupParticipantsUpdate(message.chat, [targetUser], "demote");
+      await message.reply(langText("group", "user_demoted", {}, message.userLang || global.currentUserLang));
+    } catch (error) {
+      await message.reply(langText("group", "demote_failed", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: demote", error);
+  }
+});
+
+// ==================== DEL COMMAND (Delete Message) ====================
+smd({
+  pattern: "del",
+  alias: ['delete', 'dlt'],
+  desc: "Deletes message of any user",
+  category: "group",
+  filename: __filename,
+  use: "<quote/reply message.>"
+}, async (message) => {
+  try {
+    if (!message.reply_message) {
+      return message.reply(langText("msgs", "reply_msg", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let replyMessage = message.reply_message;
+    
+    if (replyMessage && replyMessage.fromMe && message.isCreator) {
+      return replyMessage.delete();
+    } else if (replyMessage && message.isGroup) {
+      if (!message.isBotAdmin) {
+        return message.reply(langText("group", "cant_delete", {}, message.userLang || global.currentUserLang));
+      }
+      if (!message.isAdmin) {
+        return message.reply(tlang().admin);
+      }
+      await replyMessage.delete();
+    } else {
+      return await message.reply(tlang().owner);
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: del", error);
+  }
+});
+
+// ==================== BROADCAST COMMAND ====================
+cmd({
+  pattern: 'broadcast',
+  desc: "Bot makes a broadcast in all groups",
+  fromMe: true,
+  category: "group",
+  filename: __filename,
+  use: "<text for broadcast.>"
+}, async (message, broadcastText) => {
+  try {
+    if (!broadcastText) {
+      return await message.reply(langText("group", "broadcast_text", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let groupData = await message.bot.groupFetchAllParticipating();
+    let groups = Object.entries(groupData).slice(0).map(entry => entry[1]);
+    let groupIds = groups.map(g => g.id);
+    
+    await message.send("*_Sending Broadcast To " + groupIds.length + " Group Chat, Finish Time " + groupIds.length * 1.5 + " second_*");
+    
+    let broadcastMessage = "*--❗" + tlang().title + " Broadcast❗--*\n\n *🍀Message:* " + broadcastText;
+    
+    let contextInfo = {
+      forwardingScore: 999,
+      isForwarded: true,
+      externalAdReply: {
+        title: "Empire-Md Broadcast",
+        body: message.senderName,
+        renderLargerThumbnail: true,
+        thumbnail: log0,
+        mediaType: 1,
+        mediaUrl: '',
+        sourceUrl: gurl,
+        showAdAttribution: true
+      }
+    };
+    
+    for (let groupId of groupIds) {
+      try {
+        await sleep(1500);
+        await send(message, broadcastMessage, { contextInfo: contextInfo }, '', '', groupId);
+      } catch {}
+    }
+    
+    return await message.reply(langText("group", "broadcast_done", { count: groupIds.length }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: broadcast", error);
+  }
+});
+
+
+// =========================================================================
+// ==================== MERGED GROUPSETTINGS.SMD COMMANDS ====================
+// =========================================================================
+
+// ==================== LYDIA COMMAND (Chatbot Toggle) ====================
+smd({
+  pattern: "lydea",
+  alias: ["chatbot"],
+  desc: "activates and deactivates chatbot.\nuse buttons to toggle.",
+  fromMe: true,
+  category: "misc",
+  filename: __filename
+}, async (message, input, { cmdName }) => {
+  try {
+    let mode = input.split(" ")[0].toLowerCase().trim();
+    
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+    
+    let botConfig = (await bot_.findOne({ id: "bot_" + message.user })) || 
+                    (await groupdb.new({ id: 'bot_' + message.user })) || 
+                    { chatbot: "false" };
+
+    if (mode == "all" || mode === "global") {
+      if (botConfig.chatbot == "true") {
+        return await message.send('*' + cmdName + " was already enabled to all chat!.*");
+      }
+      await bot_.updateOne({ id: 'bot_' + message.user }, { chatbot: "true" });
+      return await message.send('*' + cmdName + " successfully enabled to all chats!.*");
+    } 
+    else if (mode.startsWith('on') || mode.startsWith('act') || mode.startsWith('enable')) {
+      if (groupConfig.chatbot == 'true' || botConfig.chatbot == 'true') {
+        return await message.send('*' + cmdName + " was already enabled.*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { chatbot: "true" });
+      return await message.send('*' + cmdName + " activated successfully.*");
+    } 
+    else if (mode.startsWith("off") || mode.startsWith('deact') || mode.startsWith("disable")) {
+      if (groupConfig.chatbot == "false" && botConfig.chatbot == 'false') {
+        return await message.send('*' + cmdName + " was already disabled.*");
+      }
+      await bot_.updateOne({ id: "bot_" + message.user }, { chatbot: 'false' });
+      await groupdb.updateOne({ id: message.chat }, { chatbot: "false" });
+      return await message.send('*' + cmdName + " deactivated successfully.*");
+    } 
+    else {
+      return await message.bot.sendButtonText(
+        message.chat,
+        [
+          { text: '✅ Enable Here', id: prefix + cmdName + ' on' },
+          { text: '❌ Disable Here', id: prefix + cmdName + ' off' },
+          { text: '🌍 Enable All', id: prefix + cmdName + ' all' }
+        ],
+        '*_' + cmdName + ' Currently ' + (botConfig.chatbot == "true" ? "Enabled in all Chats" : groupConfig.chatbot == 'true' ? "Enabled in Chat" : "Disabled in Chat") + '_*',
+        Config.caption,
+        message
+      );
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: lydea(chatbot)", error);
+  }
+});
+
+// ==================== CHECKWARN COMMAND ====================
+smd({
+  pattern: "checkwarn",
+  alias: ["listwarn", 'chatwarn', "allwarn"],
+  desc: "create paste of text.",
+  category: "general",
+  filename: __filename
+}, async (message, option) => {
+  try {
+    let outputText = '';
+    let targetUser = message.sender;
+
+    if (message.isCreator) {
+      targetUser = message.reply_message ? message.reply_message.sender : 
+                   message.mentionedJid[0] ? message.mentionedJid[0] : targetUser;
+    }
+
+    let user = (await userdb.findOne({ id: targetUser })) || 
+               (await userdb.new({ id: targetUser }));
+    
+    let warnings = user.warn || false;
+    let specificWarnings = {};
+
+    if (warnings && option === 'all') {
+      warnings = user.warn;
+    } else if (warnings && warnings[message.chat]) {
+      specificWarnings[message.chat] = [...warnings[message.chat]];
+      warnings = specificWarnings;
+    } else {
+      warnings = false;
+    }
+
+    let hasWarnings = option === "all" ? true : !warnings[message.chat];
+
+    if (!user || !warnings || !hasWarnings) {
+      return await message.send("*_User didn't have any warning yet!!_*");
+    }
+
+    console.log("allwarn : ", warnings);
+
+    for (const chatId in warnings) {
+      let chatWarnings = warnings[chatId];
+      outputText += "\n╭─────────────◆\n│ *[ID] : " + 
+        (chatId.includes('@') ? (await message.bot.getName(chatId)) || chatId : chatId) + 
+        "*\n│ *[TOTAL WARNING] : " + warnings[chatId].length + "*\n┝─────────────◆\n";
+      
+      for (let i = 0; i < chatWarnings.length; i++) {
+        outputText += "┝── *WARNING " + (i + 1) + "* ──\n│  *DATE:* " + 
+          chatWarnings[i].date + " " + 
+          (chatWarnings[i].reason ? "  \n│  *REASON:* " + chatWarnings[i].reason : '') + 
+          "\n│  *WARNED BY:* " + chatWarnings[i].warnedby + 
+          "\n│  *CHAT:* " + chatWarnings[i].chat + "\n";
+      }
+      outputText += "╰─────────────◆\n";
+    }
+
+    return await message.reply(outputText ? outputText : "*_User didn't have any warning yet!!_*");
+  } catch (error) {
+    await message.error(error + "\n\nCommand: chatwarn", error);
+  }
+});
+
+// ==================== WARN COMMAND ====================
+smd({
+  pattern: "warn",
+  fromMe: true,
+  desc: "warn a user!",
+  category: "general",
+  filename: __filename,
+  use: " < USER >"
+}, async (message, reason) => {
+  try {
+    let { jid: targetUser, number: targetNumber } = pickTargetUser(message, reason);
+
+    if (!targetUser) {
+      return await message.send("*_Uhh please, reply/mention/tag a user or type their number!!_*");
+    }
+
+    let user = (await userdb.findOne({ id: targetUser })) || 
+               (await userdb.new({ id: targetUser }));
+    
+    let warnings = user.warn || {};
+    if (!warnings[message.chat]) {
+      warnings[message.chat] = [];
+    }
+
+    var warningEntry = {
+      chat: message.isGroup ? message.metadata?.["subject"] || "GROUP" : "PRIVATE CHAT",
+      reason: reason,
+      date: message.date,
+      warnedby: message.senderName
+    };
+
+    warnings[message.chat].push(warningEntry);
+    await userdb.updateOne({ id: targetUser }, { warn: warnings });
+
+    let warnLimit = parseInt(Config.warncount) || 3;
+
+    if (warnings[message.chat].length >= warnLimit && !message.checkBot(targetUser)) {
+      try {
+        await message.bot.updateBlockStatus(targetUser, "block");
+      } catch (error) {
+        console.log("WARN BLOCK ERROR: ", error);
+      }
+
+      if (message.isGroup) {
+        if (message.isBotAdmin) {
+          await message.send("*_Hey @" + targetNumber + 
+            ", blocking and kicking you from group!_*\n*_Because your warn limit reached " + warnLimit + "!_*", 
+            { mentions: [targetUser] });
+          await message.bot.groupParticipantsUpdate(message.chat, [targetUser], "remove");
+        } else {
+          return await message.send("*_Hey @" + targetNumber + 
+            " your warn limit reached " + warnLimit + ". You have been blocked._*", { mentions: [targetUser] });
+        }
+      } else {
+        await message.send("*_Hey @" + targetNumber + 
+          ", Blocking you!_*\n*_Because your warn limit reached " + warnLimit + "!_*", 
+          { mentions: [targetUser] });
+      }
+    } else {
+      return await message.send("*_Hey @" + targetNumber + 
+        " warning added (" + warnings[message.chat].length + "/" + warnLimit + "), Don't spam!_*", { mentions: [targetUser] });
+    }
+  } catch (error) {
+    await message.error(error + "\n\nCommand: warn ", error, false);
+  }
+});
+
+// ==================== RESETWARN COMMAND ====================
+smd({
+  pattern: "resetwarn",
+  desc: "create paste of text.",
+  category: "general",
+  filename: __filename,
+  use: " user "
+}, async (message, option) => {
+  try {
+    if (!message.isCreator && !message.isAdmin) {
+      return await message.reply(tlang().admin);
+    }
+
+    let { jid: targetUser } = pickTargetUser(message, option);
+
+    if (!targetUser) {
+      return await message.send("*_Uhh please, reply/mention/tag a user or type their number!!_*");
+    }
+
+    let user = (await userdb.findOne({ id: targetUser })) || 
+               (await userdb.new({ id: targetUser })) || {};
+    
+    let warnings = user.warn || {};
+
+    if (message.isCreator && option.toLowerCase() === "all" && warnings) {
+      warnings = {};
+    } else {
+      if (!user || !warnings || !warnings[message.chat]) {
+        return await message.send("*_User didn't have any warning yet!!_*");
+      }
+      delete warnings[message.chat];
+    }
+
+    await userdb.updateOne({ id: targetUser }, { warn: warnings });
+    await message.reply(langText("group", "warns_cleared", {}, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\nCommand: resetwarn", error);
+  }
+});
+
+// ==================== ACT COMMAND (Activate Features) ====================
+smd({
+  pattern: "act",
+  alias: ["activate", 'active'],
+  desc: "Switches for varios works.",
+  category: "moderation",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+
+    const isAdmin = message.isAdmin;
+    let feature = input?.split(" ")[0].toLowerCase()?.trim() || false;
+
+    if (!isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat })) || false;
+
+    if (!groupConfig) {
+      return await message.reply(langText("group", "group_not_db", {}, message.userLang || global.currentUserLang));
+    }
+
+    switch (feature) {
+      case "antilink":
+        if (groupConfig.antilink !== "false") {
+          return await message.reply(langText("group", "antilink_already_on", {}, message.userLang || global.currentUserLang));
+        }
+        await groupdb.updateOne({ id: message.chat }, { antilink: "warn" });
+        await message.reply(langText("group", "antilink_enabled", {}, message.userLang || global.currentUserLang));
+        break;
+
+      case "economy":
+        if (groupConfig.economy == "true") {
+          return await message.reply(langText("group", "economy_already_on", {}, message.userLang || global.currentUserLang));
+        }
+        await groupdb.updateOne({ id: message.chat }, { economy: 'true' });
+        await message.reply(langText("group", "economy_enabled", {}, message.userLang || global.currentUserLang));
+        break;
+
+      case "events":
+      case 'event':
+        await groupdb.updateOne({ id: message.chat }, { welcome: "true", goodbye: "true" });
+        return await message.reply(langText("group", "events_enabled", {}, message.userLang || global.currentUserLang));
+
+      case "nsfw":
+        if (groupConfig.nsfw == "true") {
+          return await message.reply(langText("group", "nsfw_already_on", {}, message.userLang || global.currentUserLang));
+        }
+        await groupdb.updateOne({ id: message.chat }, { nsfw: "true" });
+        await message.reply(langText("group", "nsfw_enabled", {}, message.userLang || global.currentUserLang));
+        break;
+
+      case 'bot':
+        if (groupConfig.botenable == 'true') {
+          return await message.reply(langText("group", "bot_already_on", {}, message.userLang || global.currentUserLang));
+        }
+        await groupdb.updateOne({ id: message.chat }, { botenable: "true" });
+        await message.reply(langText("group", "bot_enabled", {}, message.userLang || global.currentUserLang));
+        break;
+
+      default:
+        message.reply("Please provide me term like.\n1-events\n2-antilink\n3-nsfw\n4-economy\n5-bot");
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: act", error);
+  }
+});
+
+// ==================== DEACT COMMAND (Deactivate Features) ====================
+smd({
+  pattern: "deact",
+  alias: ["deactive", 'deactivate'],
+  desc: "Switches for varios works.",
+  category: "moderation",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+
+    const isAdmin = message.isAdmin;
+    let feature = input?.split(" ")[0].toLowerCase()?.trim() || false;
+
+    if (!feature) {
+      return message.reply("❌ Please provide me term like like\n1-events\n2-antilink\n3-nsfw\n4-bot\n5-economy");
+    }
+
+    if (!isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat })) || false;
+
+    if (!groupConfig) {
+      return await message.reply(langText("group", "request_error", {}, message.userLang || global.currentUserLang));
+    }
+
+    switch (feature) {
+      case 'antilink':
+        if (groupConfig.antilink == "false") {
+          return message.reply(langText("group", "antilink_already_off", {}, message.userLang || global.currentUserLang));
+        }
+        await groupdb.updateOne({ id: message.chat }, { antilink: "false" });
+        message.reply(langText("group", "antilink_disabled", {}, message.userLang || global.currentUserLang));
+        break;
+
+      case "economy":
+        if (groupConfig.economy == 'false') {
+          return message.reply(langText("group", "economy_already_off", {}, message.userLang || global.currentUserLang));
+        }
+        await groupdb.updateOne({ id: message.chat }, { economy: "false" });
+        message.reply(langText("group", "economy_disabled", {}, message.userLang || global.currentUserLang));
+        break;
+
+      case "events":
+      case "event":
+        if (groupConfig.events == "false") {
+          return message.reply(langText("group", "events_already_off", {}, message.userLang || global.currentUserLang));
+        }
+        await groupdb.updateOne({ id: message.chat }, { welcome: "false", goodbye: "false" });
+        return message.reply(langText("group", "events_disabled", {}, message.userLang || global.currentUserLang));
+
+      case "nsfw":
+        if (groupConfig.nsfw == "false") {
+          return message.reply(langText("group", "nsfw_already_off", {}, message.userLang || global.currentUserLang));
+        }
+        await groupdb.updateOne({ id: message.chat }, { nsfw: "false" });
+        message.reply(langText("group", "nsfw_disabled", {}, message.userLang || global.currentUserLang));
+        break;
+
+      case "bot":
+        if (groupConfig.botenable == "false") {
+          return await message.reply(langText("group", "bot_already_off", {}, message.userLang || global.currentUserLang));
+        }
+        await groupdb.updateOne({ id: message.chat }, { botenable: "true" });
+        await message.reply(langText("group", "bot_disabled", {}, message.userLang || global.currentUserLang));
+        break;
+
+      default:
+        message.reply("Please provide me term like.\n1-events\n2-antilink\n3-nsfw\n4-bot\n5-economy");
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: deact", error);
+  }
+});
+
+// ==================== BOT COMMAND ====================
+smd({
+  pattern: "bot",
+  desc: "activates and deactivates bot.\nuse buttons to toggle.",
+  fromMe: true,
+  category: "misc",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let userInput = input ? input.toLowerCase().trim() : false;
+    let mode = userInput ? userInput.split(" ")[0] : false;
+    
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+
+    if (!mode) {
+      await message.send("*_Bot *" + (groupConfig.botenable === "false" ? "Disabled" : "Enabled") + " in this Chat!_*");
+      return await message.bot.sendButtonText(
+        message.chat,
+        [
+          { text: '✅ Enable Bot', id: prefix + 'bot on' },
+          { text: '❌ Disable Bot', id: prefix + 'bot off' }
+        ],
+        '*Bot Control*',
+        Config.caption,
+        message
+      );
+    } else if (mode.startsWith("off") || mode.startsWith("deact") || mode.startsWith("disable")) {
+      if (groupConfig.botenable === 'false') {
+        await message.send("*_Bot already disabled in current Chat!!_*");
+      } else {
+        await groupdb.updateOne({ id: message.chat }, { botenable: "false" });
+        await message.send("*_Bot Disabled Succesfully!_*");
+      }
+    } else if (mode.startsWith('on') || mode.startsWith("act") || mode.startsWith("enable")) {
+      if (groupConfig.botenable === "true") {
+        await message.send("*_Bot already enabled in current Chat!!_*");
+      } else {
+        await groupdb.updateOne({ id: message.chat }, { botenable: "true" });
+        await message.send("*_Bot Succesfully Enabled!_*");
+      }
+    } else {
+      await message.send("*_Provide Valid Instruction_*\n*Ex: _" + prefix + "bot on/off_*");
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: bot", error);
+  }
+});
+
+// ==================== ANTITAG COMMAND ====================
+smd({
+  pattern: "antitag",
+  desc: "detect tagall in group chat, then kick them",
+  fromMe: true,
+  category: 'misc',
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let userInput = input ? input.toLowerCase().trim() : false;
+    let mode = userInput ? userInput.split(" ")[0] : false;
+    
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+
+    if (!mode) {
+      await message.send("*_Anti_tag *" + (groupConfig.antitag === "false" ? "Disabled" : 'Enabled') + " in this Chat!_*");
+    } else if (mode.startsWith('off') || mode.startsWith('deact') || mode.startsWith('disable')) {
+      if (groupConfig.antitag === "false") {
+        await message.send("*_Anti_tag already disabled in current Chat!!_*");
+      } else {
+        await groupdb.updateOne({ id: message.chat }, { antitag: "false" });
+        await message.send("*_Anti_tag Disabled Succesfully!_*");
+      }
+    } else if (mode.startsWith('on') || mode.startsWith("act") || mode.startsWith('enable')) {
+      if (groupConfig.antitag === "true") {
+        await message.send("*_Anti_tag already enabled in current Chat!!_*");
+      } else {
+        await groupdb.updateOne({ id: message.chat }, { antitag: "true" });
+        await message.send("*_Anti_tag succesfully enabled in chat!_*\n*_Now bot kick user who tag all members!_*");
+      }
+    } else {
+      await message.send("*_Provide Valid Instruction_*\n*Ex: _" + prefix + "antitag on/off_*");
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: antitag", error);
+  }
+});
+
+// ==================== ANTILINK COMMAND ====================
+smd({
+  pattern: 'antilink',
+  desc: "activates and deactivates antilink.",
+  category: "group",
+  filename: __filename
+}, async (message, input, { smd: commandName }) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let userInput = input ? input.toLowerCase().trim() : false;
+    let mode = userInput ? userInput.split(" ")[0] : false;
+    
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+
+    if (!mode) {
+      return await message.send(
+        "*_Antilink " + (groupConfig.antilink === "false" ? "Disabled" : "Enabled") + " in this Group!_* \n" +
+        (groupConfig.antilink === 'false' ? '' : "*Current Mode:* _" + groupConfig.antilink + '_') +
+        "\n\n*Antilink Modes:* ```\n" +
+        (prefix + commandName) + " kick (Delete Links & Kick Senders)\n" +
+        (prefix + commandName) + " delete (Delete Links Only)\n" +
+        (prefix + commandName) + " warn (warn & delete links)\n" +
+        (prefix + commandName) + " off (Disable Antilink in chat) ```\n\n\n" + Config.caption
+      );
+    } else if (mode.startsWith("off") || mode.startsWith('deact') || mode.startsWith("disable")) {
+      if (groupConfig.antilink === "false") {
+        return await message.send("*_Anti_Link already disabled in current Chat!!_*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antilink: "false" });
+      return await message.send("*_Anti_Link Disabled Succesfully!_*");
+    } else if (mode.startsWith("kick")) {
+      if (groupConfig.antilink === "kick") {
+        return await message.send("*_Anti_Link already set to kick link senders!!_*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antilink: "kick" });
+      return await message.send("*_Anti_Link Succesfully set to kick link senders!_*");
+    } else if (mode.startsWith("delete")) {
+      if (groupConfig.antilink === "delete") {
+        return await message.send("*_Anti_Link already set to delete links!!_*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antilink: "delete" });
+      return await message.send("*_Anti_Link Succesfully set to delete links from chat!_*");
+    } else if (mode.startsWith("warn")) {
+      if (groupConfig.antilink === "warn") {
+        return await message.send("*_Anti_Link already set to warn link senders!!_*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antilink: 'warn' });
+      return await message.send("*_Anti_Link set to warn and delete links!_*");
+    } else {
+      return await message.send("*_Uhh Please, Provide Valid Instruction_*\n*Eg: _" + prefix + "antilink kick/delete/warn/off_*");
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: antilink", error);
+  }
+});
+
+// ==================== WELCOME COMMAND ====================
+smd({
+  pattern: 'welcome',
+  alias: ["setwelcome"],
+  desc: "sets welcome message in specific group.",
+  category: 'group',
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let mode = input.toLowerCase().trim();
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+
+    if (mode === 'on' || mode === "act" || mode === "enable") {
+      if (groupConfig.welcome === 'true') {
+        return await message.send("*_Welcome already enabled in current group!!_*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { welcome: "true" });
+      await message.send("*Welcome successfully enabled!!*");
+    }
+
+    if (groupConfig.welcome !== 'true') {
+      return await message.send("*_Welcome *Disabled in this Group!_* \n*_Use on/off to enable/disable welcome_*");
+    }
+
+    if (!input || mode === "get") {
+      return await message.reply(langText("group", "welcome_msg", { text: groupConfig.welcometext }, message.userLang || global.currentUserLang));
+    }
+
+    if (mode === "off" || mode === 'deact' || mode === "disable") {
+      if (groupConfig.welcome === "false") {
+        return await message.send("*_Welcome already disabled in current group!!_*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { welcome: "false" });
+      return await message.send("*Welcome message disabled!!*");
+    }
+
+    await groupdb.updateOne({ id: message.chat }, { welcometext: input, welcome: "true" });
+    await sendWelcome(message, input);
+  } catch (error) {
+    message.error(error + "\n\ncommand: setwelcome", error);
+  }
+});
+
+// ==================== GOODBYE COMMAND ====================
+smd({
+  pattern: 'goodbye',
+  alias: ["setgoodbye", "setbye"],
+  desc: "sets goodbye message in specific group.",
+  category: "group",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let mode = input.toLowerCase().trim();
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+
+    if (mode === 'on' || mode === "act" || mode === 'enable') {
+      if (groupConfig.goodbye === "true") {
+        return await message.send("*_Goodbye already enabled in current group!!_*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { goodbye: "true" });
+      await message.send("*Goodbye successfully enabled!!*");
+    }
+
+    if (groupConfig.goodbye !== "true") {
+      return await message.send("*_Goodbye *Disabled in this Group!_* \n*_Use on/off to enable/disable goodbye_*");
+    }
+
+    if (!input || mode === "get") {
+      return await message.reply(langText("group", "goodbye_msg", { text: groupConfig.goodbyetext }, message.userLang || global.currentUserLang));
+    }
+
+    if (mode === "off" || mode === "deact" || mode === "disable") {
+      if (groupConfig.goodbye === "false") {
+        return await message.send("*_Goodbye already disabled in current group!!_*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { goodbye: "false" });
+      return await message.send("*Goodbye message disabled!!*");
+    }
+
+    await groupdb.updateOne({ id: message.chat }, { goodbyetext: input, goodbye: 'true' });
+    await sendWelcome(message, input);
+  } catch (error) {
+    message.error(error + "\n\ncommand: setgoodbye", error);
+  }
+});
+
+// ==================== ONLYADMIN COMMAND ====================
+smd({
+  pattern: "onlyadmin",
+  alias: ['antimessge'],
+  desc: "activates and deactivates onlyadmin.",
+  category: "group",
+  filename: __filename
+}, async (message, input, { cmdName }) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+    
+    let userInput = input ? input.toLowerCase().trim() : false;
+    let mode = userInput ? userInput.split(" ")[0] : false;
+
+    if (!mode) {
+      return await message.send('*_' + cmdName + " *" + 
+        (groupConfig.onlyadmin === "false" ? "Disabled" : "Enabled") + 
+        " in this Group!_*\n *_Use on/off to enable/disable_*");
+    } else if (mode.startsWith('off') || mode.startsWith("deact") || mode.startsWith("disable")) {
+      if (groupConfig.onlyadmin === 'false') {
+        return await message.reply(langText("group", "onlyadmin_off", {}, message.userLang || global.currentUserLang));
+      }
+      await groupdb.updateOne({ id: message.chat }, { onlyadmin: "false" });
+      await message.bot.groupSettingUpdate(message.chat, 'not_announcement');
+      return await message.send('*' + cmdName + " succesfully disable in group!_*\n*_Now everyone send message in group_*");
+    } else if (mode.startsWith('on') || mode.startsWith("act") || mode.startsWith("enable")) {
+      if (groupConfig.onlyadmin === "true") {
+        return await message.reply(langText("group", "onlyadmin_on", {}, message.userLang || global.currentUserLang));
+      }
+      if (message.isBotAdmin) {
+        await groupdb.updateOne({ id: message.chat }, { onlyadmin: 'true' });
+        await message.bot.groupSettingUpdate(message.chat, 'announcement');
+        return await message.send('*' + cmdName + " succesfully set to kick msg senders!_*\n*_Now only admins allow to send msg in group_*");
+      } else {
+        return await message.reply(langText("msgs", "not_bot_admin", {}, message.userLang || global.currentUserLang));
+      }
+    } else {
+      return await message.reply(langText("group", "provide_on_off", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: onlyadmin", error);
+  }
+});
+
+// ==================== ANTIBOT COMMAND ====================
+smd({
+  pattern: "antibot",
+  desc: "kick Bot Users from Group.!",
+  category: "group",
+  filename: __filename
+}, async (message, input, { cmdName }) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+    
+    let userInput = input ? input.toLowerCase().trim() : '';
+    let mode = userInput.startsWith('on') || userInput.startsWith("act") || 
+               userInput.startsWith('enable') || userInput.startsWith("del") || 
+               userInput.startsWith("warn") ? 'warn' : 
+               userInput.startsWith("kic") ? "kick" : 
+               userInput.startsWith('off') || userInput.startsWith("reset") || 
+               userInput.startsWith('deact') || userInput.startsWith("disable") ? "false" : '';
+
+    if (!mode) {
+      return await message.send("*_Antibot Currently *" + 
+        (groupConfig.antibot === "false" ? 'Disabled' : "Enabled") + 
+        " in this Group!_*\n*_Use warn/kick/off to enable/disable Antibot_*");
+    } else if (mode === "false") {
+      if (groupConfig.antibot === "false") {
+        return await message.reply(langText("group", "antibot_disabled", {}, message.userLang || global.currentUserLang));
+      }
+      await groupdb.updateOne({ id: message.chat }, { antibot: "false" });
+      return await message.send("*_Antibot Succesfully Disable in group!_*");
+    } else if (mode === 'warn' || mode === "kick") {
+      if (groupConfig.antibot === mode) {
+        return await message.reply(langText("group", "antibot_mode", { mode }, message.userLang || global.currentUserLang));
+      }
+      if (!message.isBotAdmin) {
+        return await message.reply(langText("msgs", "not_bot_admin", {}, message.userLang || global.currentUserLang));
+      }
+      await groupdb.updateOne({ id: message.chat }, { antibot: mode });
+      return await message.send("*_Antibot Succesfully set to " + mode + " Bot Users!_*");
+    } else {
+      return await message.reply(langText("group", "antibot_instructions", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: antibot", error);
+  }
+});
+
+// ==================== DISABLE COMMAND ====================
+smd({
+  pattern: "disable",
+  desc: "disable cmds in Group.!",
+  category: "group",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+    
+    let userInput = input ? input.toLowerCase().trim() : false;
+    let commandName = userInput ? userInput.split(" ")[0] : '';
+
+    if (!commandName) {
+      return await message.send("*Provide cmd name to disable in group*\n*Ex " + prefix + "disable tag(to disabled 'tag' cmd)/info*");
+    } else if (commandName.startsWith("info") || commandName.startsWith("list") || commandName.startsWith("cmds")) {
+      return await message.send(groupConfig.disablecmds === "false" ? 
+        "*_Uhh Dear, Theres no cmd disabled in current group_*" : 
+        "*_Disable cmds :_* ```" + groupConfig.disablecmds.replace("false,", '') + '```');
+    } else if (commandName.startsWith("enable") || commandName.startsWith('disable') || commandName.startsWith("bot")) {
+      return await message.reply(langText("group", "cant_disable_cmd", {}, message.userLang || global.currentUserLang));
+    } else if (commandName) {
+      const command = empireMd.commands.find(cmd => cmd.pattern === commandName) || 
+                      empireMd.commands.find(cmd => cmd.alias && cmd.alias.includes(commandName));
+      
+      if (command) {
+        let escapedPattern = command.pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        let patternRegex = new RegExp("\\b" + escapedPattern + "\\b");
+        
+        if (patternRegex.test(groupConfig.disablecmds)) {
+          return await message.send("*Uhh Dear, Provided cmd already in disable cmds*");
+        }
+        
+        var newDisabledCmds = groupConfig.disablecmds + ',' + command.pattern;
+        await groupdb.updateOne({ id: message.chat }, { disablecmds: newDisabledCmds });
+        
+        let displayCmds = newDisabledCmds.replace("false,", '');
+        return await message.send("*_\"" + commandName + "\" Succesfully added in disable cmds_*" + 
+          (displayCmds === '' ? '' : "\n*_Disable cmds :_* ```" + displayCmds + "```"));
+      } else {
+        return await message.reply(langText("group", "invalid_cmd", { cmd: commandName }, message.userLang || global.currentUserLang));
+      }
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: enable", error);
+  }
+});
+
+// ==================== ENABLE COMMAND ====================
+smd({
+  pattern: "enable",
+  desc: "enable a cmd in Group.!",
+  category: 'group',
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+    
+    let userInput = input ? input.toLowerCase().trim() : false;
+    let commandName = userInput ? userInput.split(" ")[0] : '';
+    let escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    let commandRegex = new RegExp("\\b" + escapedCommand + "\\b");
+
+    if (!commandName || commandName === '') {
+      return await message.send("*Please provide disabled cmd name to enable it*\n*Ex " + prefix + "enable tag(if 'tag' cmd disabled)/all(reset disables)*");
+    } else if (userInput.startsWith("all")) {
+      await groupdb.updateOne({ id: message.chat }, { disablecmds: "false" });
+      return await message.send("*_All disable cmds succesfully enabled_*");
+    } else if (commandRegex.test(groupConfig.disablecmds) && groupConfig.disablecmds.includes(commandName)) {
+      let updatedCmds = groupConfig.disablecmds.replace(commandRegex, '');
+      await groupdb.updateOne({ id: message.chat }, { disablecmds: updatedCmds });
+      return await message.send("*_\"" + commandName.replace(',', '') + "\" Succesfully removed from disable cmds_*");
+    } else {
+      return await message.send("_There's no cmd disabled with *" + commandName.replace(',', '') + "* name");
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: disable", error);
+  }
+});
+
+// ==================== ANTIFAKE COMMAND ====================
+smd({
+  pattern: "antifake",
+  desc: "Detects promote/demote and sends alert.",
+  category: 'group',
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+    
+    let userInput = input ? input.toLowerCase().trim() : '';
+
+    if (userInput.startsWith("off") || userInput.startsWith("deact") || userInput.startsWith('disable')) {
+      if (groupConfig.antifake == "false") {
+        return await message.send("*Anti_Fake Already Disabled In Current Chat!*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antifake: 'false' });
+      return await message.send("*Anti_Fake Disable Succesfully!*");
+    } else if (!input) {
+      return await message.send("*_Antifake " + 
+        (groupConfig.antifake === 'false' ? "Not set to any" : "set to \"" + groupConfig.antifake + "\"") + 
+        " Country Code!_*\n *Provide Country code to Update Antifake Status*\n*Eg: _.antifake 92_*");
+    }
+
+    let countryCodes = input ? input.split(',').map(code => parseInt(code)).filter(code => !isNaN(code)).join(',') : false;
+
+    if (!input || !countryCodes) {
+      return await message.send("*_Please provide a country code First_*\n *_Only numbers to join this group._*\n*_eg: " + prefix + "antifake 92_*");
+    } else if (countryCodes) {
+      await groupdb.updateOne({ id: message.chat }, { antifake: '' + countryCodes });
+      return await message.send("*Anti_Fake Succesfully set to \"" + countryCodes + "\"!*\n*_Now People Joined Group Who's Number Start With " + countryCodes + '_*');
+    } else {
+      return await message.send("*_Please provide a Valid country code First_*\n *_Only numbers to join this group._*\n*_eg: " + prefix + "antifake 92_*");
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: antifake", error);
+  }
+});
+
+// ==================== ANTIDEMOTE COMMAND ====================
+smd({
+  pattern: "antidemote",
+  desc: "Detects Promote and Automaticaly demote promoted person.",
+  category: "group",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+    
+    let userInput = input ? input.toLowerCase().trim() : '';
+
+    if (userInput.startsWith('on') || userInput.startsWith("act") || userInput.startsWith("enable")) {
+      if (groupConfig.antidemote == "true") {
+        return await message.send("*Anti_Demote Already Enabled In Current Chat!*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antidemote: "true" });
+      return await message.send("*Anti_Demote Enable Succesfully! _No One Demote Here Now_.*");
+    } else if (userInput.startsWith('off') || userInput.startsWith("deact") || userInput.startsWith("disable")) {
+      if (groupConfig.antidemote == "false") {
+        return await message.send("*Anti_Demote Already Disabled In Current Chat!*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antidemote: "false" });
+      return await message.send("*Anti_Demote Disable Succesfully!*");
+    } else {
+      return await message.reply(langText("group", "toggle_on_off", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: antidemote", error);
+  }
+});
+
+// ==================== ANTIPROMOTE COMMAND ====================
+smd({
+  pattern: "antipromote",
+  desc: "Detects Promote and Automaticaly demote promoted person.",
+  category: "group",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+    
+    let userInput = input ? input.toLowerCase().trim() : '';
+
+    if (userInput.startsWith('on') || userInput.startsWith("act") || userInput.startsWith("enable")) {
+      if (groupConfig.antipromote == "true") {
+        return await message.send("*Anti_Promote Already Enabled In Current Chat!*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antipromote: "true" });
+      return await message.send("*Anti_Promote Enable Succesfully! _No One Promote Here Now_.*");
+    } else if (userInput.startsWith("off") || userInput.startsWith("deact") || userInput.startsWith("disable")) {
+      if (groupConfig.antipromote == "false") {
+        return await message.send("*Anti_Promote Already Disabled In Current Chat!*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antipromote: 'false' });
+      return await message.send("*Anti_Promote Disable Succesfully!*");
+    } else {
+      return await message.reply(langText("group", "toggle_on_off", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: antipromote", error);
+  }
+});
+
+// ==================== PDM COMMAND (Promote/Demote Alerts) ====================
+smd({
+  pattern: 'pdm',
+  desc: "Detect Promote/Demote Users And Send Alerts in Chat ",
+  category: "group",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+    
+    let userInput = input ? input.toLowerCase().trim() : '';
+
+    if (userInput.startsWith('on') || userInput.startsWith("act") || userInput.startsWith("enable")) {
+      if (groupConfig.pdm == 'true') {
+        return await message.send("*Promote/Demote Alerts Already Enabled In Current Chat!*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { pdm: "true" });
+      return await message.send("*Promote/Demote Alerts Enable Succesfully!*");
+    } else if (userInput.startsWith("off") || userInput.startsWith("deact") || userInput.startsWith('disable')) {
+      if (groupConfig.pdm == "false") {
+        return await message.send("*Promote/Demote Alerts Already Disabled In Current Chat!*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { pdm: "false" });
+      return await message.send("*Promote/Demote Alerts Disable Succesfully!*");
+    } else {
+      return await message.reply(langText("group", "toggle_on_off", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: pdm", error);
+  }
+});
+
+// ==================== AMUTE COMMAND (Auto Mute) ====================
+smd({
+  pattern: "amute",
+  desc: "sets auto mute time in group.",
+  category: 'moderation'
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+
+    if (!input) {
+      return await message.reply(langText("group", "auto_mute_status", {
+        status: groupConfig.mute === "false" ? "disabled" : "enabled",
+        detail: groupConfig.mute !== "false" ? "\n*Auto-mute set at: " + groupConfig.mute + "*" : ""
+      }, message.userLang || global.currentUserLang));
+    }
+
+    let [hours, minutes] = input.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours >= 24 || minutes < 0 || minutes >= 60) {
+      return message.reply(langText("group", "time_format", { prefix, cmd: "amute" }, message.userLang || global.currentUserLang));
+    }
+
+    let timeFormatted = hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0');
+    await groupdb.updateOne({ id: message.chat }, { mute: timeFormatted });
+    return message.reply(langText("group", "auto_mute_done", { time: timeFormatted }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    message.error(error + "\n\ncommand: amute", error);
+  }
+});
+
+// ==================== AUNMUTE COMMAND (Auto Unmute) ====================
+smd({
+  pattern: "aunmute",
+  desc: "sets unmute time in group.",
+  category: "moderation"
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat }));
+
+    if (!input) {
+      return await message.reply(langText("group", "auto_unmute_status", {
+        status: groupConfig.unmute === "false" ? "disabled" : "enabled",
+        detail: groupConfig.unmute !== "false" ? "\n*Auto-unmute set at: " + groupConfig.unmute + "*" : ""
+      }, message.userLang || global.currentUserLang));
+    }
+
+    let [hours, minutes] = input.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours >= 24 || minutes < 0 || minutes >= 60) {
+      return message.reply(langText("group", "time_format", { prefix, cmd: "aunmute" }, message.userLang || global.currentUserLang));
+    }
+
+    let timeFormatted = hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0');
+    await groupdb.updateOne({ id: message.chat }, { unmute: timeFormatted });
+    return message.reply(langText("group", "auto_unmute_done", { time: timeFormatted }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    message.error(error + "\n\ncommand: aunmute", error);
+  }
+});
+
+// ==================== DUNMUTE COMMAND (Delete Auto Unmute) ====================
+smd({
+  pattern: "dunmute",
+  desc: "Delete unmute from group.",
+  category: "moderation"
+}, async (message) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = await groupdb.findOne({ id: message.chat });
+    if (!groupConfig || !groupConfig.unmute || groupConfig.unmute == "false") {
+      return await message.reply(langText("group", "no_auto_unmute", {}, message.userLang || global.currentUserLang));
+    }
+    await groupdb.updateOne({ id: message.chat }, { unmute: "false" });
+    return await message.reply(langText("group", "auto_unmute_deleted", {}, message.userLang || global.currentUserLang));
+  } catch (error) {
+    message.error(error + "\n\ncommand: dunmute", error);
+  }
+});
+
+// ==================== DMUTE COMMAND (Delete Auto Mute) ====================
+smd({
+  pattern: "dmute",
+  desc: "Delete mute from group.",
+  category: "moderation"
+}, async (message, input) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = await groupdb.findOne({ id: message.chat });
+    if (!groupConfig || !groupConfig.mute || groupConfig.mute == 'false') {
+      return await message.reply(langText("group", "no_auto_mute", {}, message.userLang || global.currentUserLang));
+    }
+    await groupdb.updateOne({ id: message.chat }, { mute: 'false' });
+    return await message.reply(langText("group", "auto_mute_deleted", {}, message.userLang || global.currentUserLang));
+  } catch (error) {
+    message.error(error + "\n\ncommand: dmute", error);
+  }
+});
+
+// ==================== ANTIWORD COMMAND ====================
+smd({
+  pattern: 'antiword',
+  desc: "Detects words from chat,and delete/warn senders.",
+  category: "group",
+  filename: __filename,
+  use: "< action | words >"
+}, async (message, input, { cmdName }) => {
+  try {
+    if (!message.isGroup) {
+      return message.reply(tlang().group);
+    }
+    if (!message.isAdmin && !message.isCreator) {
+      return message.reply(tlang().admin);
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || 
+                      (await groupdb.new({ id: message.chat, antiword: { status: "false", words: '' } }));
+    
+    let userInput = input ? input.toLowerCase().trim() : false;
+    let antiwordConfig = groupConfig.antiword;
+    
+    let helpText = "*Antiword Currently *" + 
+      (antiwordConfig.status !== "false" ? "enabled" : "disabled") + "!!!* ```\n  STATUS: " + 
+      (antiwordConfig.status ? antiwordConfig.status : "--Empty Yet--") + " \n  WORDS: " + 
+      (antiwordConfig.words ? antiwordConfig.words.replace(/,/gi, " -- ") : "--Empty Yet--") + 
+      "```\n\n*Available Cmds:* ```\n  " + (prefix + cmdName) + " off \n  " + (prefix + cmdName) + " reset\n  " + 
+      (prefix + cmdName) + " warn | bad,words\n  " + (prefix + cmdName) + " delete | hot,badas\n``` \n\n\n " + Config.caption;
+
+    if (!userInput || !input) {
+      return await message.send(helpText);
+    }
+
+    let wordsPart = userInput.split('|')[1] || '';
+    let mode = userInput.startsWith('on') || userInput.startsWith("act") || 
+               userInput.startsWith('enable') || userInput.startsWith("del") ? 'delete' : 
+               userInput.startsWith("warn") ? "warn" : 
+               userInput.startsWith('off') || userInput.startsWith('deact') || 
+               userInput.startsWith('disable') ? "false" : 
+               userInput.startsWith("reset") ? "reset" : '';
+    
+    mode = !mode && wordsPart && antiwordConfig.status !== "false" ? antiwordConfig.status : mode;
+
+    if (mode === 'reset') {
+      await groupdb.updateOne({ id: message.chat }, { antiword: {} });
+      return await message.send("*_Anti_Word status cleard!_*");
+    } else if (mode === 'delete' || mode === "warn") {
+      if (antiwordConfig.status == mode && !wordsPart) {
+        return await message.send("*Please provide badWords, like " + (prefix + cmdName) + " " + mode + " | bad,words");
+      }
+      wordsPart = wordsPart ? wordsPart : antiwordConfig.words;
+      await groupdb.updateOne({ id: message.chat }, { antiword: { status: mode, words: wordsPart } });
+      return await message.send("*_Anti_Word succesfully set to '" + mode + "' badward!_*\n*Antiwords are:```" + 
+        (wordsPart ? wordsPart.replace(/,/gi, " | ") : "--Empty Yet--") + "``` *");
+    } else if (mode === "false") {
+      if (antiwordConfig.status === mode) {
+        return await message.send("*Anti_Word Already Disabled In Current Chat!*");
+      }
+      await groupdb.updateOne({ id: message.chat }, { antiword: { status: 'false', words: antiwordConfig.words } });
+      return await message.send("*Anti_Word Disable Succesfully!*");
+    } else {
+      return await message.reply(langText("group", "follow_instructions", { text: helpText }, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    message.error(error + "\n\ncommand: antiword", error);
+  }
+});
+
+async function getMentionConfig(botJid) {
+  let botData = (await bot_.findOne({ id: "bot_" + botJid })) || (await bot_.new({ id: "bot_" + botJid }));
+  return botData.mention || {};
+}
+
+async function sendMentionReply(message, mentionConfig) {
+  if (mentionConfig.media && mentionConfig.media.data && mentionConfig.media.type) {
+    const mediaBuffer = Buffer.from(mentionConfig.media.data, "base64");
+    const mediaType = mentionConfig.media.type;
+    const content = {
+      [mediaType]: mediaBuffer,
+      mimetype: mentionConfig.media.mimetype || undefined
+    };
+
+    if (mentionConfig.text && !["audio", "sticker"].includes(mediaType)) {
+      content.caption = mentionConfig.text;
+    }
+    if (mediaType === "audio") {
+      content.ptt = !!mentionConfig.media.ptt;
+    }
+
+    return await message.bot.sendMessage(message.chat, content, { quoted: message });
+  }
+
+  const mentionText = (mentionConfig.text || "I am offline right now.")
+    .replace(/@user/gi, "@" + message.senderNum)
+    .replace(/@name/gi, message.senderName || message.senderNum);
+
+  return await message.bot.sendMessage(message.chat, {
+    text: mentionText,
+    mentions: [message.sender]
+  }, { quoted: message });
+}
+
+// ==================== MENTION COMMAND ====================
+smd({
+  pattern: "setmention",
+  alias: ["mention", "metion"],
+  desc: "set auto reply when the bot is tagged",
+  category: "group",
+  use: "<text|off> or reply media",
+  fromMe: true,
+  filename: __filename
+}, async (message, input, { botNumber }) => {
+  try {
+    const botJid = botNumber || message.user;
+    const action = (input || "").trim();
+    const lowerAction = action.toLowerCase();
+
+    if (["off", "false", "disable", "delete", "remove", "clear"].includes(lowerAction)) {
+      await bot_.updateOne({ id: "bot_" + botJid }, { mention: { status: false } });
+      return await message.reply(langText("group", "mention_reply_disabled", {}, message.userLang || global.currentUserLang));
+    }
+
+    let mentionData = {
+      status: true,
+      text: action,
+      get: action || "media",
+      updatedAt: new Date().toISOString()
+    };
+
+    if (message.quoted && /^(image|video|audio|sticker)Message$/i.test(message.quoted.mtype || "")) {
+      const mediaBuffer = await message.quoted.download();
+      const mediaType = (message.quoted.mtype || "").replace(/Message$/i, "").toLowerCase();
+      mentionData.media = {
+        type: mediaType,
+        data: mediaBuffer.toString("base64"),
+        mimetype: message.quoted.mimetype || "",
+        ptt: !!message.quoted.msg?.ptt
+      };
+      mentionData.text = action || message.quoted.text || "";
+      mentionData.get = mentionData.text || mediaType;
+    }
+
+    if (!mentionData.text && !mentionData.media) {
+      return await message.reply(
+        "*Use:* `" + prefix + "mention am offline`\n" +
+        "*Media:* reply image/video/audio/sticker with `" + prefix + "mention`\n" +
+        "*Off:* `" + prefix + "setmention off`"
+      );
+    }
+
+    await bot_.updateOne({ id: "bot_" + botJid }, { mention: mentionData });
+    return await message.reply(langText("group", "mention_reply_saved", {}, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: setmention", error, "*Could not save mention auto-reply.*");
+  }
+});
+
+// ==================== MAIN EVENT HANDLER ====================
+smd({
+  on: "main"
+}, async (message, input, { botNumber, isCreator, budy, body, icmd }) => {
+  try {
+    if (Config.MsgsInLog === 'true') {
+      console.log('' + (message.isGroup ? 
+        "[MESSAGE IN GROUP] From => " + message.metadata.subject + "\n[USER]:" : 
+        "[MESSAGE IN PRIVATE] From =>") + 
+        (" " + message.senderName + " " + message.senderNum + "\n[" + 
+        message.mtype.toUpperCase() + "]: " + message.body + 
+        "\n============== [SMD] ================="));
+    }
+
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || false;
+    let warnStatus = false;
+
+    try {
+      const botJid = botNumber || message.user;
+      const taggedBot = message.isGroup && !message.fromMe && !icmd && message.mtype !== "reactionMessage" && (
+        (message.mentionedJid || []).includes(message.user) ||
+        (message.body || "").includes("@" + (message.user || "").split("@")[0])
+      );
+
+      if (taggedBot) {
+        const mentionConfig = await getMentionConfig(botJid);
+        if (mentionConfig && (mentionConfig.status === true || mentionConfig.status === "true")) {
+          await sendMentionReply(message, mentionConfig);
+        }
+      }
+    } catch (error) {
+      console.log("Error From Mention Reply : ", error);
+    }
+
+    try {
+      if (!global.SmdOfficial && global.SmdOfficial !== "yes") {
+        return;
+      }
+
+      if (groupConfig && groupConfig.antitag == "true" && !message.checkBot() && 
+          message.mtype !== 'reactionMessage' && groupConfig.botenable == "true") {
+        
+        const isTagAll = await haveEqualMembers(
+          message.metadata.participants.map(p => p.id), 
+          message.mentionedJid
+        );
+
+        if (isTagAll && message.isBotAdmin) {
+          let warnData = {
+            reason: "tagging all members!",
+            chat: message.metadata?.["subject"] || "GROUP",
+            warnedby: tlang().title,
+            date: message.date
+          };
+          warnStatus = await warn.addwarn(message.sender, message.chat, warnData);
+          await message.reply(langText("group", "tag_detected", { user: message.senderNum }, message.userLang || global.currentUserLang),
+            { mentions: [message.sender] });
+          await message.delete();
+        } else if (isTagAll && !message.isBotAdmin) {
+          await message.reply(langText("group", "tagall_no_admin", {}, message.userLang || global.currentUserLang),
+            { mentions: [message.sender] });
+        }
+      }
+
+      if (groupConfig && message.isGroup && !message.isAdmin && !isCreator && 
+          message.mtype !== "reactionMessage" && groupConfig.botenable == "true") {
+        
+        if (groupConfig.antibot && groupConfig.antibot !== "false" && message.isBot && !message.checkBot(message.sender)) {
+          if (message.isBotAdmin) {
+            var actionMessage = "*_Bot user not allowed, please make it private!_*";
+            if (groupConfig.antibot === "warn") {
+              let warnData = {
+                reason: "Bots not allowed!",
+                chat: message.metadata?.["subject"] || "GROUP",
+                date: message.date
+              };
+              warnStatus = warnStatus ? warnStatus : await warn.addwarn(message.sender, message.chat, warnData);
+              if (warnStatus.status) {
+                actionMessage = "*_Hey @" + message.senderNum + " warning, Due To Antibot!_*";
+              }
+            } else if (groupConfig.antibot === "kick") {
+              try {
+                sleep(1000);
+                await message.bot.groupParticipantsUpdate(message.chat, [message.sender], "remove");
+                actionMessage = "*_User @" + message.senderNum + " kick Due To Antibot!_*";
+              } catch {}
+            }
+            await message.delete();
+            await message.send(actionMessage, { mentions: [message.sender] });
+          } else if (!message.isBotAdmin && message.isBot) {
+            await message.reply(langText("group", "antibot_admin_needed", {}, message.userLang || global.currentUserLang));
+          }
+        }
+
+        if (groupConfig.onlyadmin && groupConfig.onlyadmin === "true" && SmdOfficial == "yes") {
+          var actionMessage = '';
+          if (message.isBotAdmin) {
+            let warnData = {
+              reason: "Only Admin can Chat!",
+              chat: message.metadata?.["subject"] || "PRIVATE",
+              warnedby: tlang().title,
+              date: message.date
+            };
+            warnStatus = warnStatus ? warnStatus : await warn.addwarn(message.sender, message.chat, warnData);
+            if (warnStatus.status) {
+              actionMessage = "*Warns you for chat here!*\n";
+            }
+            await message.delete();
+            sleep(1500);
+            await message.send("*Hey @" + message.senderNum + "* " + actionMessage + 
+              "*Deleteing message,while onlyadmin activated!!* ", { mentions: [message.sender] });
+          } else {
+            await message.send("*_Provide admin role to kick Message Senders_*\n*Or _Disable onlyadmin(on/off) in currentchat_*");
+          }
+        }
+
+        if (groupConfig.antilink && groupConfig.antilink !== "false" && SmdOfficial === "yes") {
+          const linkPatterns = Config.antilink_values && Config.antilink_values !== "all" ? 
+            Config.antilink_values.split(',').filter(val => val.trim() !== '') : 
+            ["https://", "chat.whatsapp.com", 'fb.com'];
+          
+          let messageText = body.toLowerCase();
+          if (linkPatterns.some(pattern => messageText.includes(pattern))) {
+            if (!message.isBotAdmin) {
+              let alertMsg = " *[LINK DETECTED]*\nUser @" + message.sender.split('@')[0] + 
+                " detected sending a link.\nPromote " + Config.botname + " as admin to " + 
+                (groupConfig.antilink === "kick" ? "kick \nlink senders." : "delete \nlinks from this Chat") + " \n";
+              await message.send(alertMsg, { mentions: [message.sender] });
+            } else {
+              if (groupConfig.antilink === "delete") {
+                await message.send("*_Link Detected.. Deletion Done!_*");
+                await message.delete();
+              } else if (groupConfig.antilink === 'warn' || groupConfig.antilink === "true") {
+                let warnData = {
+                  reason: "links not allowed!",
+                  chat: message.metadata?.["subject"] || "PRIVATE",
+                  warnedby: tlang().title,
+                  date: message.date
+                };
+                warnStatus = warnStatus ? warnStatus : await warn.addwarn(message.sender, message.chat, warnData);
+                var actionMessage = warnStatus.status ? 
+                  "*_[LINK DETECTED] Hey @" + message.senderNum + " warning!!_*\n*_links not allowed in current group!_*" : 
+                  "*_[LINK DETECTED]!_*";
+                await message.reply(actionMessage, { mentions: [message.sender] });
+                await message.delete();
+              } else if (groupConfig.antilink === "kick") {
+                await message.send("*_Link Detected!!_*");
+                try {
+                  await message.delete();
+                  await sleep(1500);
+                  await message.bot.groupParticipantsUpdate(message.chat, [message.sender], 'remove');
+                } catch {
+                  await message.send("*Link Detected*\n" + tlang().botAdmin);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.log("Error From Antilinks : ", error);
+    }
+
+    var antiwordConfig = groupConfig?.["antiword"] || { status: 'false' };
+    if (input.length > 1 && !message.isBot && antiwordConfig && antiwordConfig.status !== "false" && antiwordConfig.words) {
+      var badWords = antiwordConfig.words.split(',') || [];
+      let wordDetected = false;
+      
+      badWords.map(async (word) => {
+        if (message.isAdmin || !global.SmdOfficial || global.SmdOfficial != "yes") {
+          return;
+        }
+        let wordRegex = new RegExp("\\b" + word?.trim() + "\\b", 'ig');
+        let messageContent = budy.toLowerCase();
+        
+        if (!wordDetected && word && wordRegex.test(messageContent)) {
+          wordDetected = true;
+          await sleep(500);
+          try {
+            var warnMsg = '';
+            if (antiwordConfig.status === "warn") {
+              let warnData = {
+                reason: "For using Bad Word",
+                chat: message.metadata?.['subject'] || 'PRIVATE',
+                warnedby: tlang().title,
+                date: message.date
+              };
+              warnStatus = warnStatus ? warnStatus : await warn.addwarn(message.sender, message.chat, warnData);
+              if (warnStatus.status) {
+                warnMsg = "\n*Warns you for using badWord!!*\n";
+              }
+            }
+            if (message.isBotAdmin) {
+              await message.send("*[BAD WORD DETECTED] Hey @" + message.senderNum + "* " + warnMsg + 
+                "*Deleting your message from chat!*\n", { mentions: [message.sender] }, "empire", message);
+              await message.delete();
+            } else {
+              await message.reply(langText("group", "badword_admin", {}, message.userLang || global.currentUserLang), { mentions: [message.sender] });
+            }
+          } catch (error) {
+            console.log("Error From Bad Words : ", error);
+          }
+        }
+      });
+    }
+
+    if (warnStatus) {
+      let warnLimit = parseInt(Config.warncount) || 3;
+      if (warnStatus.warning >= warnLimit) {
+        if (message.isGroup) {
+          if (message.isBotAdmin) {
+            await message.send("*_Hey @" + message.senderNum + " Kicking you from group!_*\n*_Because Your warn limit exceed!_*", 
+              { mentions: [message.sender] });
+            await message.bot.groupParticipantsUpdate(message.chat, [message.sender], "remove");
+          }
+        } else {
+          await message.send("*_Hey @" + message.senderNum + " Blocking you!_*\n*_Because Your warn limit exceed!_*", 
+            { mentions: [message.sender] });
+          await message.bot.updateBlockStatus(message.sender, 'block');
+        }
+      }
+    }
+
+      try {
+      if (!global.SmdOfficial || message.mtype == "reactionMessage") {
+        return;
+      }
+      let chatConfig = (await groupdb.findOne({ id: message.chat })) || { chatbot: "false" };
+      
+      if (!bott || chatbotCount >= 10) {
+        bott = (await bot_.findOne({ id: "bot_" + message.user })) || { chatbot: "false" };
+      } else {
+        chatbotCount++;
+      }
+      
+      let chatbotEnabled = bott && bott.chatbot && bott.chatbot == "true" ? "true" : chatConfig.chatbot || "false";
+      
+      if (chatbotEnabled === "true" && !icmd && !message.isBot && message.text) {
+        let targetCheck = !message.isGroup ? message.user : 
+          message.quoted ? message.quoted.sender : message.mentionedJid[0] || false;
+        
+        if (message.isGroup && targetCheck && !message.checkBot(targetCheck)) {
+          return;
+        }
+        
+        // PrinceTech AI Chatbot
+        let prompt = budy || message.text;
+        const response = await smdJson(
+          `https://api.princetechn.com/api/ai/chat?apikey=prince&q=${encodeURIComponent(prompt)}`
+        );
+
+        if (response && response.status === 200 && response.success && response.result) {
+          message.send(response.result, {}, "empire", message);
+        }
+      }
+    } catch (error) {
+      console.log("Error From ChatBot : ", error);
+    }
+  } catch (error) {
+    console.log("Group Settings error in command.main() \n", error);
+  }
+});
+
+// ==================== GROUP EVENT HANDLERS ====================
+
+// User Added to Group
+smd({
+  group: "add"
+}, async (message, { Void }) => {
+  try {
+    let groupConfig = await groupdb.findOne({ id: message.chat });
+    if (!groupConfig || !message.isGroup || groupConfig.botenable !== "true" || message.blockJid || message.fromMe) {
+      return;
+    }
+
+    let welcomeEnabled = groupConfig && groupConfig.welcome ? groupConfig.welcome : "false";
+    let antifakeCodes = groupConfig && groupConfig.antifake ? groupConfig.antifake.toLowerCase() : "false";
+    let allowedCodes = antifakeCodes.split(',');
+    const isAllowed = allowedCodes.some(code => message.user.startsWith(code));
+
+    if (antifakeCodes !== "false" && !isAllowed && !message.isCreator) {
+      if (message.isBotAdmin) {
+        try {
+          await message.kick();
+          return await sendWelcome(message, "*[ANTIFAKE START] @User kicked automaticaly!* @pp");
+        } catch (error) {
+          await message.error(" Can't kick user in antifake\n❲❒❳ GROUP: " + message.metadata.subject + 
+            "\n❲❒❳ ERROR: " + error + "\n", error, false);
+        }
+      } else {
+        await message.send("*[ANTI_FAKE ERROR] Need admin role to kick fake users!!*");
+      }
+    } else if (welcomeEnabled === "true") {
+      await sendWelcome(message, groupConfig.welcometext);
+    }
+  } catch (error) {
+    console.log("Error From Welcome : ", error);
+  }
+});
+
+// User Removed from Group
+smd({
+  group: 'remove'
+}, async (message, { Void }) => {
+  try {
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || false;
+    if (!message || !groupConfig || !message.isGroup || groupConfig.botenable !== 'true' || message.blockJid || message.fromMe) {
+      return;
+    }
+    let goodbyeEnabled = groupConfig && groupConfig.goodbye ? groupConfig.goodbye : 'false';
+    if (goodbyeEnabled === "true") {
+      await sendWelcome(message, groupConfig.goodbyetext);
+    }
+  } catch (error) {
+    console.log("Error From Goodbye : ", error);
+  }
+});
+
+// User Promoted
+smd({
+  group: 'promote'
+}, async (message, { Void }) => {
+  try {
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || false;
+    if (!groupConfig || !message.isGroup || groupConfig.botenable !== "true" || message.blockJid) {
+      return;
+    }
+
+    if (!user_warns[message.sender]) {
+      user_warns[message.sender] = { [message.action]: 1 };
+    } else {
+      user_warns[message.sender][message.action]++;
+    }
+
+    let cantDemote;
+    if (groupConfig.antipromote == "true" && !message.isCreator) {
+      cantDemote = !message.isBotAdmin;
+      if (users[message.sender] && users[message.sender].previous_Action === "antidemote") {
+        delete users[message.sender];
+        return;
+      }
+      if (message.isBotAdmin) {
+        try {
+          await message.demote();
+          users[message.sender] = { previous_Action: 'antipromote' };
+          if (user_warns[message.sender][message.action] > 2) {
+            return;
+          }
+          return await sendWelcome(message, "*[ANTIPROMOTE START] @User Demoted Automatically!* @pp ");
+        } catch (error) {
+          await message.error(" Can't demote user in antipromote\n❲❒❳ GROUP: " + message.metadata.subject + 
+            "\n❲❒❳ ERROR: " + error + "\n", error, false);
+        }
+      }
+    }
+
+    if (groupConfig.pdm == 'true' || cantDemote) {
+      if (user_warns[message.sender][message.action] > 2) {
+        return;
+      }
+      var promoteAlert = " *[SOMEONE PROMOTE HERE]*\n" + 
+        (cantDemote ? "*Note : _I'm Not Admin Here, So I Can't Demote Someone while Anti_Promote Activated_*" : '') + 
+        "\n           \n  ❲❒❳ *User:* _@user_\n❲❒❳ *Position:* _Member -> Admin_ @pp\n  ❲❒❳ *Total Members:* _@count_Members_\n❲❒❳ *Group Name:* @gname\n\n\n" + Config.caption;
+      return await sendWelcome(message, promoteAlert);
+    }
+  } catch (error) {
+    console.log("Error From Promote : ", error);
+  }
+});
+
+// User Demoted
+smd({
+  group: "demote"
+}, async (message, { Void }) => {
+  try {
+    let groupConfig = (await groupdb.findOne({ id: message.chat })) || false;
+    if (!groupConfig || !message.isGroup || groupConfig.botenable !== 'true' || message.blockJid) {
+      return;
+    }
+
+    if (!user_warns[message.sender]) {
+      user_warns[message.sender] = { [message.action]: 1 };
+    } else {
+      user_warns[message.sender][message.action]++;
+    }
+
+    let cantPromote;
+    if (groupConfig.antidemote == "true" && !message.isCreator) {
+      cantPromote = !message.isBotAdmin;
+      if (users[message.sender] && users[message.sender].previous_Action === 'antipromote') {
+        delete users[message.sender];
+        return;
+      }
+      if (message.isBotAdmin) {
+        try {
+          await message.promote();
+          users[message.sender] = { previous_Action: "antidemote" };
+          if (user_warns[message.sender][message.action] > 2) {
+            return;
+          }
+          return await sendWelcome(message, "*[ANTIPROMOTE START] User promote automatically!* @pp ");
+        } catch (error) {
+          await message.error(" Can't promote user in antidemote\n❲❒❳ GROUP: " + message.metadata.subject + 
+            "\n❲❒❳ ERROR: " + error + "\n", error, false);
+        }
+      }
+    }
+
+    if (groupConfig.pdm == "true" || cantPromote) {
+      if (user_warns[message.sender][message.action] > 2) {
+        return;
+      }
+      var demoteAlert = " *[SOMEONE DEMOTE HERE]*\n  " + 
+        (cantPromote ? "*Note : _I'm Not Admin Here, So I Can't promote Someone while Anti_Demote Activated_*" : '') + 
+        "\n\n  ❲❒❳ *User:* _@user_\n❲❒❳ *Position:* _Admin -> Member_ @pp\n  ❲❒❳ *Total Members:* _@count_Members_\n❲❒❳ *Group Name:* @gname\n  \n\n" + Config.caption;
+      return await sendWelcome(message, demoteAlert);
+    }
+  } catch (error) {
+    console.log("Error From Demote : ", error);
+  }
+});
+
+// ==================== BAN COMMAND ====================
+smd({
+  'pattern': "ban",
+  'category': 'owner',
+  'filename': __filename,
+  'desc': "Bans user from using bot."
+}, async (message, reason) => {
+  if (!isMainDev(message)) return message.reply(langText("group", "dev_only", {}, message.userLang || global.currentUserLang));
+
+  try {
+    let { jid: targetUser } = pickTargetUser(message, reason);
+
+    if (!targetUser) return await message.send("*_Uhh please, reply/mention/tag a user or type their number!!_*");
+
+    let userName = await message.bot.getName(targetUser);
+    let user = await userdb.findOne({ id: targetUser });
+
+    if (!user) {
+      await new userdb({ id: targetUser, ban: "true" }).save();
+      return await message.send(`_Banned ${userName} from Using Commands._`);
+    } 
+    
+    if (user.ban == "true") {
+      return await message.send(`_${userName} is already Banned from Using Commands!_`);
+    }
+    
+    await userdb.updateOne({ id: targetUser }, { ban: "true" });
+    return await message.send(`_Successfully Banned ${userName} from Using Commands._`);
+  } catch (error) {
+    console.log(error);
+    return await message.send("*_Please reply or mention a user!_*");
+  }
+});
+
+// ==================== UNBAN COMMAND ====================
+smd({
+  'pattern': "unban",
+  'category': 'owner',
+  'filename': __filename,
+  'desc': "Unbans banned user (from using bot)."
+}, async (message, reason) => {
+  if (!isMainDev(message)) return message.reply(langText("group", "dev_only", {}, message.userLang || global.currentUserLang));
+
+  try {
+    let { jid: targetUser } = pickTargetUser(message, reason);
+
+    if (!targetUser) return await message.send("*_Uhh please, reply/mention/tag a user or type their number!!_*");
+
+    let userName = await message.bot.getName(targetUser);
+    let user = await userdb.findOne({ id: targetUser });
+
+    if (!user) {
+      return await message.send(`_${userName} is not banned!_`);
+    } 
+    
+    if (user.ban !== "true") {
+      return await message.send(`_${userName} is already unbanned!_`);
+    }
+    
+    await userdb.updateOne({ id: targetUser }, { ban: "false" });
+    return await message.send(`_${userName} is free now!_`);
+  } catch (error) {
+    console.log(error);
+    return await message.send("*_Please reply or mention a user!_*");
+  }
+});

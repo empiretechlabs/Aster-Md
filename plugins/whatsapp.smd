@@ -1,0 +1,542 @@
+/**
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+//                                                                                                      //
+//                                ＷＨＡＴＳＡＰＰ ＢＯＴ－ＭＤ ＢＥＴＡ                                   //
+//                                                                                                      // 
+//                                         Ｖ：１．０．１                                                // 
+//                                                                                                      // 
+//            ███████╗███╗   ███╗██████╗ ██╗██████╗ ███████╗   ███╗   ███╗██████╗                       //
+//            ██╔════╝████╗ ████║██╔══██╗██║██╔══██╗██╔════╝   ████╗ ████║██╔══██╗                      //
+//            █████╗  ██╔████╔██║██████╔╝██║██████╔╝█████╗     ██╔████╔██║██║  ██║                      //
+//            ██╔══╝  ██║╚██╔╝██║██╔═══╝ ██║██╔══██╗██╔══╝     ██║╚██╔╝██║██║  ██║                      //
+//            ███████╗██║ ╚═╝ ██║██║     ██║██║  ██║███████╗   ██║ ╚═╝ ██║██████╔╝                      //
+//            ╚══════╝╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝     ╚═╝╚═════╝                       //
+//                                                                                                      //
+//                                                                                                      //
+//                                                                                                      //
+//══════════════════════════════════════════════════════════════════════════════════════════════════════//
+
+CURRENTLY RUNNING ON BETA VERSION!!
+*
+   * @project_name : Empire-Md
+   * @author : Empire Tech Labs
+   * @youtube : https://www.youtube.com/@only_one_empire
+   * @description : Empire-Md ,A Multi-functional whatsapp user bot.
+   * @version 1.0.0
+*
+   * Licensed under the GPL-3.0 License;
+* 
+   * Created By Empire Tech Labs.
+   * © 2026 Empire-Md.
+**/
+
+
+const moment = require('moment-timezone');
+const { randomUUID } = require('crypto');
+const Config = require("../config");
+let {
+  fancytext,
+  smd,
+  tlang,
+  tiny,
+  botpic,
+  prefix,
+  bot_,
+  updateProfilePicture,
+  parsedJid,
+  langText,
+  tr
+} = require("../lib");
+const {
+  cmd
+} = require("../lib/plugins");
+
+// Command: privacy - Get WhatsApp privacy settings
+cmd({
+  'pattern': "privacy",
+  'desc': "send ptv Message of video",
+  'category': "whatsapp",
+  'filename': __filename
+}, async (message, args, { cmdName }) => {
+  try {
+    const privacySettings = await message.bot.fetchPrivacySettings();
+    txt = "*[WHATSAPP PRIVACY SETTINGS]*\n\n*PROFILE:* " + privacySettings.profile + "\n*STATUS:* " + privacySettings.status + "\n*ONLINE:* " + privacySettings.online + "\n*LASTSEEN:* " + privacySettings.last + "\n*MESSAGE READ:* " + privacySettings.readreceipts + "\n\n*Who can add in group:* " + privacySettings.groupadd + "\n*Who can call:* " + privacySettings.calladd + "\n    ";
+    await message.send(txt);
+  } catch (error) {
+    await message.error(error + "\n\ncommand : privacy", error);
+  }
+});
+
+let mtypes = ["imageMessage"];
+
+// Command: pp - Set profile picture
+smd({
+  'pattern': 'pp',
+  'desc': "Set profile picture",
+  'category': "whatsapp",
+  'use': "<reply to image>",
+  'fromMe': true,
+  'filename': __filename
+}, async (message) => {
+  try {
+    let mediaMessage = mtypes.includes(message.mtype) ? message : message.reply_message;
+    if (!mediaMessage || !mtypes.includes(mediaMessage?.["mtype"] || 'need_Media')) {
+      return await message.reply(langText("msgs", "need_reply_image", {}, message.userLang || global.currentUserLang));
+    }
+    return await updateProfilePicture(message, message.user, mediaMessage, 'pp');
+  } catch (error) {
+    await message.error(error + "\n\ncommand : pp", error);
+  }
+});
+
+// Command: fullpp - Set full screen profile picture
+smd({
+  'pattern': "fullpp",
+  'desc': "Set full screen profile picture",
+  'category': 'whatsapp',
+  'use': "<reply to image>",
+  'fromMe': true,
+  'filename': __filename
+}, async (message) => {
+  try {
+    let mediaMessage = mtypes.includes(message.mtype) ? message : message.reply_message;
+    if (!mediaMessage || !mtypes.includes(mediaMessage?.["mtype"] || "need_Media")) {
+      return await message.reply(langText("msgs", "need_reply_image", {}, message.userLang || global.currentUserLang));
+    }
+    return await updateProfilePicture(message, message.user, mediaMessage, "fullpp");
+  } catch (error) {
+    await message.error(error + "\n\ncommand : fullpp", error);
+  }
+});
+
+// Command: rpp - Remove profile picture
+smd({
+  'pattern': "rpp",
+  'desc': "remove profile picture",
+  'category': "whatsapp",
+  'use': "<chat>",
+  'fromMe': true,
+  'filename': __filename
+}, async (message) => {
+  try {
+    await message.removepp();
+    message.send("*_Profile picture removed successfully!_*");
+  } catch (error) {
+    await message.error(error + "\n\ncommand : rpp", error);
+  }
+});
+
+// Command: bio - Update profile status/bio
+smd({
+  'pattern': "bio",
+  'desc': "update profile status of whatsapp",
+  'category': "whatsapp",
+  'use': "<text>",
+  'fromMe': true,
+  'filename': __filename
+}, async (message, text) => {
+  try {
+    if (!text) {
+      return await message.send("*_provide text to update profile status!_*\n*_Example: " + prefix + "bio Empire Md_*");
+    }
+    await message.bot.updateProfileStatus(text);
+    message.send("*Profile status updated successfully!*");
+  } catch (error) {
+    await message.error(error + "\n\ncommand : bio", error);
+  }
+});
+
+// Command: product - Send WhatsApp product catalog message (Baileys)
+smd({
+  pattern: "product",
+  alias: ["shop", "productmsg"],
+  desc: "send product catalog message",
+  category: "whatsapp",
+  use: "<reply to image>",
+  fromMe: true,
+  filename: __filename
+}, async (message) => {
+  try {
+    let image = { url: global.THUMB_IMAGE };
+    const mediaMessage = mtypes.includes(message.mtype) ? message : message.reply_message;
+
+    if (mediaMessage && mtypes.includes(mediaMessage?.mtype || '')) {
+      const mediaUrl = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+      image = { url: mediaUrl };
+    }
+
+    await message.bot.sendMessage(message.chat, {
+      image,
+      body: '👋🏻 Check my product here!',
+      footer: '@itsliaaa/baileys',
+      product: {
+        currencyCode: 'NGN',
+        description: '🛍️ Interesting product!',
+        priceAmount1000: 70_000_000,
+        productId: randomUUID(),
+        productImageCount: 1,
+        salePriceAmount1000: 65_000_000,
+        signedUrl: 'https://www.npmjs.com/package/@itsliaaa/baileys',
+        title: '📦 Starseed (Premium)',
+        url: 'https://www.npmjs.com/package/@itsliaaa/baileys'
+      },
+      businessOwnerJid: message.user
+    }, { quoted: message });
+
+  } catch (error) {
+    await message.error(error + "\n\ncommand : product", error);
+  }
+});
+
+// Command: buttons - Send interactive buttons (Baileys)
+smd({
+  pattern: "buttons",
+  alias: ["button", "btn"],
+  desc: "send interactive buttons message",
+  category: "whatsapp",
+  fromMe: true,
+  filename: __filename
+}, async (message) => {
+  try {
+    await message.bot.sendButtonText(
+      message.chat,
+      [
+        { text: '👋🏻 Menu', id: prefix + 'menu' },
+        { text: '📋 List', id: prefix + 'list' },
+        { text: '🛍️ Product', id: prefix + 'product' }
+      ],
+      '👆🏻 Tap a button below',
+      '@itsliaaa/baileys',
+      message
+    );
+  } catch (error) {
+    await message.error(error + "\n\ncommand : buttons", error);
+  }
+});
+
+// Command: ptv - Send video as view once
+cmd({
+  'pattern': "ptv",
+  'desc': "send ptv Message of video",
+  'category': "whatsapp",
+  'filename': __filename
+}, async (message, args, { cmdName }) => {
+  try {
+    if (!message.quoted) {
+      return await message.send("*Uhh Please, reply to video*");
+    }
+    let quotedMtype = message.quoted.mtype;
+    if (quotedMtype !== "videoMessage") {
+      return await message.send("*Uhh Dear, reply to a video message*");
+    }
+    return await message.bot.forwardOrBroadCast2(message.chat, message.quoted, {}, cmdName);
+  } catch (error) {
+    await message.error(error + "\n\ncommand : ptv", error);
+  }
+});
+
+// Command: save - Save message to log number
+cmd({
+  'pattern': 'save',
+  'desc': "Save Message to log number",
+  'category': "whatsapp",
+  'filename': __filename
+}, async (message, args, { cmdName }) => {
+  try {
+    if (!message.quoted) {
+      return await message.reply(langText("msgs", "reply_msg", {}, message.userLang || global.currentUserLang))
+    }
+    message.bot.forwardOrBroadCast(message.sender, message.quoted, { quoted: { key: message.quoted.key, 
+    message: message.quoted.message 
+    } });
+
+  } catch (error) {
+    await message.error(error + "\n\ncommand : save", error);
+  }
+});
+
+// Command: quoted - Get original replied message
+cmd({
+  'pattern': "quoted",
+  'desc': "get reply Message from Replied Message",
+  'category': 'user',
+  'filename': __filename
+}, async (message) => {
+  try {
+    if (!message.quoted) {
+      return await message.send("*_Uhh Dear, Reply to a Message_*");
+    }
+    var serializedMessage = await message.bot.serializeM(await message.getQuotedObj());
+    if (!serializedMessage || !serializedMessage.quoted) {
+      return await message.replay("*Message you replied does not contain a reply Message*");
+    }
+    try {
+      await message.react('✨', message);
+      let originalQuoted = await message.bot.serializeM(await serializedMessage.getQuotedObj());
+      return await message.bot.copyNForward(message.chat, originalQuoted, false);
+    } catch (innerError) {
+      await message.bot.forward(message.chat, serializedMessage.quoted, {}, message);
+      console.log(innerError);
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : quoted", error);
+  }
+});
+
+// Command: blocklist - Get list of blocked numbers
+cmd({
+  'pattern': "blocklist",
+  'desc': "get list of all Blocked Numbers",
+  'category': 'whatsapp',
+  'fromMe': true,
+  'filename': __filename,
+  'use': "<text>"
+}, async (message) => {
+  try {
+    const blockedList = await message.bot.fetchBlocklist();
+    if (blockedList.length === 0) {
+      return await message.reply("Uhh Dear, You don't have any Blocked Numbers.");
+    }
+    let listText = "\n*≡ List*\n\n*_Total Users:* " + blockedList.length + "_\n\n┌─⊷ \t*BLOCKED USERS*\n";
+    for (let i = 0; i < blockedList.length; i++) {
+      listText += "▢ " + (i + 1) + ":- wa.me/" + blockedList[i].split('@')[0] + "\n";
+    }
+    listText += "└───────────";
+    return await message.bot.sendMessage(message.chat, { 'text': listText });
+  } catch (error) {
+    await message.error(error + "\n\ncommand : blocklist", error);
+  }
+});
+
+// Command: location - Send location
+cmd({
+  'pattern': "location",
+  'desc': "Adds *readmore* in given text.",
+  'category': "whatsapp",
+  'filename': __filename
+}, async (message, coords) => {
+  try {
+    if (!coords) {
+      return await message.reply(langText("whatsapp", "location_coords", { prefix }, message.userLang || global.currentUserLang));
+    }
+    let latitude = parseFloat(coords.split(',')[0]) || '';
+    let longitude = parseFloat(coords.split(',')[1]) || '';
+    if (!latitude || isNaN(latitude) || !longitude || isNaN(longitude)) {
+      return await message.reply(langText("whatsapp", "location_invalid", {}, message.userLang || global.currentUserLang));
+    }
+    await message.reply(langText("whatsapp", "location_sending", { lat: latitude, lng: longitude }, message.userLang || global.currentUserLang) + "\n\n" + Config.caption);
+    return await message.sendMessage(message.jid, {
+      'location': {
+        'degreesLatitude': latitude,
+        'degreesLongitude': longitude
+      }
+    }, { 'quoted': message });
+  } catch (error) {
+    await message.error(error + "\n\ncommand : location", error);
+  }
+});
+
+// Command: listpc - List personal chats
+smd({
+  'pattern': "listpc",
+  'category': "whatsapp",
+  'desc': "Finds info about personal chats",
+  'filename': __filename
+}, async (message, args, { store }) => {
+  try {
+    message.react('🫡');
+    let personalChats = await store.chats.all().filter(chat => chat.id.endsWith('.net')).map(chat => chat);
+    let resultText = " 「  " + Config.botname + "'s pm user list  」\n\nTotal " + personalChats.length + " users are text in personal chat.";
+    for (let user of personalChats) {
+      resultText += "\n\nUser: @" + user.id.split('@')[0] + "\nMessages : " + user.unreadCount + "\nLastchat : " + moment(user.conversationTimestamp * 1000).tz(timezone).format("DD/MM/YYYY HH:mm:ss");
+    }
+    message.bot.sendTextWithMentions(message.chat, resultText, message);
+  } catch (error) {
+    return await message.error(error + "\n\n command: listpc", error, "*_Didn't get any results, Sorry!_*");
+  }
+});
+
+// Command: listgc - List group chats
+smd({
+  'pattern': 'listgc',
+  'category': 'whatsapp',
+  'desc': "Finds info about all active groups",
+  'filename': __filename
+}, async (message, args, { store, Void }) => {
+  try {
+    message.react('🫡');
+    let groups = await store.chats.all().filter(chat => chat.id.endsWith('@g.us')).map(chat => chat);
+    let resultText = " 「  " + Config.botname + "'s group user list  」\n\nTotal " + groups.length + " active Groups found!";
+    for (let group of groups) {
+      let metadata = await Void.groupMetadata(group.id);
+      resultText += "\n\nName : " + metadata.subject + " " + (metadata.owner ? "\nOwner : @" + metadata.owner.split('@')[0] : '') + "\nID : " + group.id + "\nMade : " + (metadata.creation ? moment(metadata.creation * 1000).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss") : metadata.creation) + "\nMember : " + (metadata.participants.length || 0) + "\n\nMessages : " + group.unreadCount + "\nLastchat : " + moment(group.conversationTimestamp * 1000).tz(timezone).format("DD/MM/YYYY HH:mm:ss");
+    }
+    message.send(resultText, {}, "empire", message);
+  } catch (error) {
+    return await message.error(error + "\n\n command: listpc", error, "*_Didn't get any results, Sorry!_*");
+  }
+});
+
+// Command: vcard - Create contact card
+cmd({
+  'pattern': 'vcard',
+  'desc': "Create Contact by given name.",
+  'category': "whatsapp",
+  'filename': __filename
+}, async (message, name) => {
+  try {
+    if (!message.quoted) {
+      return message.reply(langText("whatsapp", "reply_user_name", {}, message.userLang || global.currentUserLang));
+    }
+    if (!name) {
+      return message.reply("Please Give Me User Name, \n *Example : " + prefix + "vcard Empire Tech Labs* ");
+    }
+    var nameParts = name.split(" ");
+    if (nameParts.length > 3) {
+      name = nameParts.slice(0, 3).join(" ");
+    }
+    const vcard = "BEGIN:VCARD\nVERSION:3.0\nFN:" + name + "\n" + "ORG:;\n" + 'TEL;type=CELL;type=VOICE;waid=' + message.quoted.sender.split('@')[0] + ':+' + owner[0] + "\n" + 'END:VCARD';
+    let contactMessage = {
+      'contacts': {
+        'displayName': name,
+        'contacts': [{ 'vcard': vcard }]
+      }
+    };
+    return await message.bot.sendMessage(message.chat, contactMessage, { 'quoted': message });
+  } catch (error) {
+    await message.error(error + "\n\ncommand : vcard", error);
+  }
+});
+
+// Command: edit - Edit bot's message
+smd({
+  'pattern': "edit",
+  'fromMe': true,
+  'desc': "edit message that sended by bot",
+  'type': "whatsapp"
+}, async (message, newText) => {
+  try {
+    let messageToEdit = message.reply_message && message.reply_message.fromMe ? message.reply_message : false;
+    if (!messageToEdit) {
+      return await message.reply("_Reply to a message that sent by you!_");
+    }
+    if (!newText) {
+      return await message.reply("_Need text, Example: edit hi_");
+    }
+    return await message.edit(newText, { 'edit': messageToEdit });
+  } catch (error) {
+    await message.error(error + "\n\ncommand : edit", error);
+  }
+});
+
+// Command: forward - Forward messages
+smd({
+  'pattern': 'forward',
+  'alias': ["send"],
+  'desc': "forward your messages in your jid",
+  'type': "whatsapp"
+}, async (message, jid) => {
+  try {
+    if (!message.reply_message) {
+      return message.reply(langText("msgs", "reply_something", {}, message.userLang || global.currentUserLang));
+    }
+    let parsedJids = await parsedJid(jid);
+    if (!jid || !parsedJids || !parsedJids[0]) {
+      return await message.send("*Provide jid to forward message*\n*use _" + prefix + "jid,_ to get jid of users!*");
+    }
+    for (let i = 0; i < parsedJids.length; i++) {
+      message.bot.forwardOrBroadCast(parsedJids[i], message.reply_message);
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand : forward", error);
+  }
+});
+
+// Command: block - Block a user
+smd({
+  'cmdname': "block",
+  'info': "blocks a person",
+  'fromMe': true,
+  'type': 'whatsapp',
+  'filename': __filename,
+  'use': "<quote/reply user.>"
+}, async (message) => {
+  try {
+    let userToBlock = message.reply_message ? message.reply_message.sender : !message.isGroup ? message.from : message.mentionedJid[0] ? message.mentionedJid[0] : '';
+    if (!userToBlock && !userToBlock.includes('@s.whatsapp.net')) {
+      return await message.reply(langText("group", "provide_user", {}, message.userLang || global.currentUserLang));
+    }
+    if (message.checkBot(userToBlock)) {
+      return await message.reply(langText("msgs", "cant_block_creator", {}, message.userLang || global.currentUserLang));
+    }
+    await message.bot.updateBlockStatus(userToBlock, "block").then(result => {
+      message.react('✨', message);
+    }).catch(err => message.reply(langText("msgs", "cant_block_user", {}, message.userLang || global.currentUserLang)));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: block", error, false);
+  }
+});
+
+// Command: unblock - Unblock a user
+smd({
+  'cmdname': 'unblock',
+  'info': "Unblocked user.",
+  'type': 'whatsapp',
+  'fromMe': true,
+  'filename': __filename
+}, async (message) => {
+  try {
+    let userToUnblock = message.reply_message ? message.reply_message.sender : !message.isGroup ? message.from : message.mentionedJid[0] ? message.mentionedJid[0] : '';
+    if (!userToUnblock && !userToUnblock.includes("@s.whatsapp.net")) {
+      return await message.reply(langText("group", "provide_user", {}, message.userLang || global.currentUserLang));
+    }
+    await message.bot.updateBlockStatus(userToUnblock, "unblock").then(result => message.send('*@' + userToUnblock.split('@')[0] + " Unblocked Successfully..!*", {
+      'mentions': [users]
+    })).catch(error => message.reply(langText("msgs", "cant_unblock_user", {}, message.userLang || global.currentUserLang)));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: unblock", error);
+  }
+});
+
+// Command: vv - Download view once messages
+cmd({
+  'pattern': 'vv',
+  'alias': ["viewonce", 'retrive'],
+  'desc': "download viewOnce Message.",
+  'category': "whatsapp",
+  'use': "<query>",
+  'filename': __filename
+}, async (message, args) => {
+  try {
+    // Fix: check reply_message.msg.viewOnce
+    var viewOnceMessage = message.reply_message && message.reply_message.msg && message.reply_message.msg.viewOnce ? message.reply_message : false;
+    
+    if (!viewOnceMessage) {
+      return message.reply("```Please Reply A ViewOnce Message```");
+    }
+    
+    let fakeMessage = {
+      'key': viewOnceMessage.key,
+      'message': {
+        'conversation': "```[VIEWONCE FOUND DOWNLOAD 100%]```"
+      }
+    };
+    
+    let mediaUrl = await message.bot.downloadAndSaveMediaMessage(viewOnceMessage.msg);
+    
+    // Send to current chat if 'chat', 'here', or 'gc' is requested; otherwise default to message.sender (private DM)
+    let targetJid = message.sender;
+    let input = (args || '').trim().toLowerCase();
+    if (['chat', 'here', 'gc'].includes(input)) {
+      targetJid = message.chat;
+    }
+    
+    await message.bot.sendMessage(targetJid, {
+      [viewOnceMessage.mtype2.split('Mes')[0]]: { 'url': mediaUrl },
+      'caption': viewOnceMessage.body
+    }, { 'quoted': fakeMessage });
+    
+  } catch (error) {
+    await message.error(error + "\n\ncommand: vv", error);
+  }
+});

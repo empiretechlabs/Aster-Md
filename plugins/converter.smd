@@ -1,0 +1,975 @@
+/**
+ * @project_name : Empire-Md
+ * @author : Empire Tech Labs
+ * @youtube : https://www.youtube.com/@only_one_empire
+ * @description : Empire-Md, A Multi-functional whatsapp user bot.
+ * @version 1.2.8
+ * Created By Empire Tech Labs.
+ * © 2026 Empire-Md.
+ */
+
+const axios = require('axios');
+const fs = require("fs-extra");
+const util = require("util");
+const { Sticker, createSticker, StickerTypes } = require("wa-sticker-formatter");
+const fetch = require("node-fetch");
+const JavaScriptObfuscator = require('javascript-obfuscator');
+
+const {
+  userdb,
+  tiny,
+  fancytext,
+  smdBuffer,
+  getBuffer,
+  sleep,
+  listall,
+  getRandom,
+  prefix,
+  smd,
+  generateSticker,
+  TelegraPh,
+  Config,
+  tlang,
+  langText,
+  tr
+} = require('../lib/');
+
+let mtypes = ["imageMessage", "videoMessage", "stickerMessage"];
+
+// ==================== STICKER COMMAND ====================
+smd({
+  cmdname: "sticker",
+  alias: ['s'],
+  info: "Makes sticker of replied image/video.",
+  type: "sticker",
+  filename: __filename,
+  use: "<reply to any image/video.>"
+}, async (message) => {
+  try {
+    let mediaMessage = mtypes.includes(message.mtype) ? message : message.reply_message;
+    
+    if (mediaMessage && mtypes.includes(mediaMessage?.["mtype"] || "need_Media")) {
+      let mediaBuffer = await mediaMessage.download();
+      let stickerOptions = {
+        pack: Config.packname,
+        author: Config.author,
+        type: StickerTypes.FULL,
+        quality: 70
+      };
+      await generateSticker(message, mediaBuffer, stickerOptions);
+      return mediaBuffer = false;
+    } else {
+      return message.reply(langText("converter", "reply_image_video", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: sticker\n");
+  }
+});
+
+// ==================== TAKE COMMAND (Steal Sticker) ====================
+smd({
+  cmdname: "take",
+  info: "Makes sticker of replied image/video.",
+  type: "sticker",
+  filename: __filename,
+  use: "<reply to sticker.>"
+}, async (message, input) => {
+  try {
+    let replyMessage = message.reply_message;
+    if (!replyMessage || replyMessage?.["mtype"] != "stickerMessage") {
+      return await message.reply(langText("msgs", "need_reply_sticker", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let parts = input.split('|');
+    let packName = parts[0]?.trim() !== '' ? parts[0] : message.pushName;
+    let authorName = parts[1] && parts[1] !== '' ? parts[1] : "ᴇᴍ🇵𝗜𝗥𝗘-𝗠𝗗 ♥️";
+    
+    let stickerBuffer = await replyMessage.download();
+    let stickerOptions = {
+      pack: packName,
+      author: authorName,
+      type: StickerTypes.FULL,
+      quality: 10
+    };
+    
+    await generateSticker(message, stickerBuffer, stickerOptions);
+    return stickerBuffer = false;
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: take\n");
+  }
+});
+
+// ==================== ATTP COMMAND (Text to Sticker) ====================
+smd({
+  cmdname: "attp",
+  info: "Makes sticker of given text.",
+  type: "sticker",
+  filename: __filename,
+  use: "< text.>"
+}, async (message, input) => {
+  try {
+    let stickerBuffer = await smdBuffer('https://raganork-api.onrender.com/api/attp?text=' + 
+      (input ? input : "Please provide text to generate sticker") + "&apikey=with_love_souravkl11");
+    return await generateSticker(message, stickerBuffer);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: attp\n");
+  }
+});
+
+// ==================== CROP COMMAND (Cropped Sticker) ====================
+smd({
+  cmdname: "crop",
+  alias: ["cropsticker"],
+  info: "Makes sticker of replied image.",
+  type: "sticker",
+  filename: __filename,
+  use: "<reply to image.>"
+}, async (message) => {
+  try {
+    let mediaMessage = mtypes.includes(message.mtype) ? message : message.reply_message;
+    
+    if (mediaMessage && mtypes.includes(mediaMessage?.["mtype"] || 'need_Media')) {
+      let mediaBuffer = await mediaMessage.download();
+      let stickerOptions = {
+        pack: Config.packname,
+        author: Config.author,
+        type: StickerTypes.CROPPED,
+        quality: 50
+      };
+      await generateSticker(message, mediaBuffer, stickerOptions);
+      return mediaBuffer = false;
+    } else {
+      return message.reply(langText("converter", "reply_image", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: crop\n", "*_Request Failed, Reply to an image only!_*");
+  }
+});
+
+// ==================== CIRCLE COMMAND (Circle Sticker) ====================
+smd({
+  cmdname: 'circle',
+  alias: ["circlestic", 'circlesticker', 'cs'],
+  info: "circle sticker of image.",
+  type: "sticker",
+  filename: __filename,
+  use: "<reply to image.>"
+}, async (message) => {
+  try {
+    let mediaMessage = mtypes.includes(message.mtype) ? message : message.reply_message;
+    
+    if (mediaMessage && mtypes.includes(mediaMessage?.['mtype'] || "need_Media")) {
+      let mediaBuffer = await mediaMessage.download();
+      let stickerOptions = {
+        pack: Config.packname,
+        author: Config.author,
+        type: StickerTypes.CIRCLE,
+        quality: 50
+      };
+      await generateSticker(message, mediaBuffer, stickerOptions);
+      return mediaBuffer = false;
+    } else {
+      return message.reply(langText("converter", "reply_image", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: circle\n", "*_Request Failed, Make sure You replied an image_*");
+  }
+});
+
+// ==================== ROUND COMMAND (Rounded Sticker) ====================
+smd({
+  cmdname: "round",
+  alias: ["roundstic", "roundsticker"],
+  info: "Makes sticker of replied image/video.",
+  type: "sticker",
+  filename: __filename,
+  use: "<reply to image.>"
+}, async (message) => {
+  try {
+    let mediaMessage = mtypes.includes(message.mtype) ? message : message.reply_message;
+    
+    if (mediaMessage && mtypes.includes(mediaMessage?.["mtype"] || "need_Media")) {
+      let mediaBuffer = await mediaMessage.download();
+      let stickerOptions = {
+        pack: Config.packname,
+        author: Config.author,
+        type: StickerTypes.ROUNDED,
+        quality: 50
+      };
+      await generateSticker(message, mediaBuffer, stickerOptions);
+      return mediaBuffer = false;
+    } else {
+      return message.reply(langText("converter", "reply_image", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: round\n", "*_Request Failed, Make sure You replied an image!_*");
+  }
+});
+
+// ==================== WALLPAPER COMMAND ====================
+smd({
+  cmdname: "wallpaper",
+  info: "To get Random Pics",
+  type: "Anime Pics",
+  filename: __filename
+}, async (message) => {
+  try {
+    const wallpaperData = await (await fetch("https://api.unsplash.com/photos/random?client_id=72utkjatCBC-PDcx7-Kcvgod7-QOFAm2fXwEeW8b8cc"))?.json();
+    const imageUrl = wallpaperData?.["urls"]?.['regular'] || false;
+    
+    if (imageUrl) {
+      await message.sendUi(message.jid, {
+        caption: "*---Random Wallpapers Here---*"
+      }, {
+        quoted: message
+      }, "image", imageUrl);
+    } else {
+      await message.send("*_Request Failed, Wallpaper not be fetched!_*");
+    }
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: wallpaper\n");
+  }
+});
+
+// ==================== MEMEGEN COMMAND ====================
+let pmtypes = ["imageMessage", "videoMessage"];
+
+smd({
+  pattern: "memegen",
+  desc: "Write text on quoted image.",
+  category: "sticker",
+  filename: __filename,
+  use: "<text>"
+}, async (message, input) => {
+  try {
+    let mediaMessage = pmtypes.includes(message.mtype) ? message : message.reply_message;
+    
+    if (!input) {
+      return await message.reply(langText("converter", "provide_text_image", {}, message.userLang || global.currentUserLang));
+    }
+    if (!mediaMessage || !pmtypes.includes(mediaMessage.mtype)) {
+      return message.reply(langText("converter", "reply_image", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let topText = input.split('|')[0] || '';
+    let outputFormat = (input.split('|')[1] || "sticker").toLowerCase();
+    let text1 = topText.split(';')[0] || '_';
+    let text2 = topText.split(';')[1] || '_';
+    
+    let mediaPath = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+    let imageUrl = await TelegraPh(mediaPath);
+    
+    try {
+      fs.unlinkSync(mediaPath);
+    } catch (error) {}
+    
+    console.log("match", input);
+    
+    let memeBuffer = await getBuffer("https://api.memegen.link/images/custom/" + text1 + '/' + text2 + '.png?background=' + imageUrl);
+    
+    if (outputFormat?.startsWith('p')) {
+      await message.send(memeBuffer, { caption: Config.caption }, "image");
+    }
+    
+    let stickerOptions = {
+      pack: Config.packname,
+      author: Config.author,
+      type: StickerTypes.FULL,
+      quality: 70
+    };
+    await generateSticker(message, memeBuffer, stickerOptions);
+    return memeBuffer = false;
+  } catch (error) {
+    message.error(error + "\n\ncmdName: memegen\n");
+    console.log(error);
+  }
+});
+
+// ==================== EMIX COMMAND (Emoji Mix) ====================
+smd({
+  pattern: 'emix',
+  desc: "Mixes two emojies.",
+  category: "sticker",
+  use: '<query>',
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let emoji1 = input.split(',')[0] || false;
+    let emoji2 = input.split(',')[1] || false;
+    
+    if (!input || !emoji1 || !emoji2) {
+      return message.reply("Example : " + prefix + "emix 😅,🤔");
+    }
+    
+    const emojiResponse = await fetch("https://tenor.googleapis.com/v2/featured?key=AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ&contentfilter=high&media_filter=png_transparent&component=proactive&collection=emoji_kitchen_v5&q=" + emoji1 + '_' + emoji2);
+    const emojiData = await emojiResponse?.json();
+    
+    if (!emojiData || emojiData?.["locale"] == '') {
+      return message.send("*_Can't create mixture, try other emojies_*");
+    } else {
+      let stickerBuffer = await smdBuffer(emojiData.results[0].url);
+      let stickerOptions = {
+        pack: Config.packname,
+        author: Config.author,
+        type: StickerTypes.FULL,
+        quality: 70
+      };
+      await generateSticker(message, stickerBuffer, stickerOptions);
+      return stickerBuffer = false;
+    }
+  } catch (error) {
+    message.error(error + "\n\ncmdName: emix");
+  }
+});
+
+// ==================== QUOTELY COMMAND ====================
+smd({
+  pattern: "quotely",
+  desc: "Makes Sticker of quoted text.",
+  alias: ['q'],
+  category: "sticker",
+  use: "<reply to any message.>",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let targetMessage = message.reply_message ? message.reply_message : message && input ? message : false;
+    let quoteText = message.reply_message ? message.reply_message.text : input;
+    
+    if (!targetMessage || !quoteText) {
+      return message.reply(langText("msgs", "reply_msg", {}, message.userLang || global.currentUserLang));
+    }
+    
+    let profilePic = await message.getpp(targetMessage.sender);
+    let bgColors = ["#FFFFFF", "#000000"];
+    let bgColor = input === 'white' ? bgColors[0] : input === "black" ? bgColors[1] : bgColors[Math.floor(Math.random() * bgColors.length)];
+    
+    let userName = message.bot.getName(targetMessage.sender);
+    
+    let quotePayload = {
+      type: "quote",
+      format: "png",
+      backgroundColor: bgColor,
+      width: 512,
+      height: 512,
+      scale: 3,
+      messages: [{
+        avatar: true,
+        from: {
+          first_name: userName,
+          language_code: 'en',
+          name: userName,
+          photo: { url: profilePic }
+        },
+        text: quoteText,
+        replyMessage: {}
+      }]
+    };
+    
+    let quoteResponse = await axios.post('https://bot.lyo.su/quote/generate', quotePayload);
+    
+    if (!quoteResponse || quoteResponse.status !== 200 || !quoteResponse.data || !quoteResponse.data.ok) {
+      return await message.send("*_Can't create quote sticker!_*");
+    }
+    
+    let quoteImageBuffer = Buffer.alloc(quoteResponse.data.result.image.length, quoteResponse.data.result.image, "base64");
+    
+    try {
+      await message.send(quoteImageBuffer, {
+        packname: Config.packname,
+        author: 'Empire-Md'
+      }, "sticker");
+    } catch (stickerError) {
+      console.log("error in quotely : ", stickerError);
+      let stickerOptions = {
+        pack: Config.packname,
+        author: Config.author,
+        type: StickerTypes.FULL,
+        quality: 70
+      };
+      return await generateSticker(message, quoteImageBuffer, stickerOptions);
+    }
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: emix", error);
+  }
+});
+
+// ==================== FANCY COMMAND ====================
+smd({
+  pattern: "fancy",
+  desc: "Makes stylish/fancy given text",
+  category: 'converter',
+  use: "56 Empire",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let outputText = "┏━━━━━━━━━━━━━━━━━━━━━━━━\n┃\t*💬EMPIRE-MD_FANCY_TEXT💬* \n┗━━━━━━━━━━━━━━━━━━━━━━━━\n\n " + 
+      (input ? "```🔢Reply the number you wants to select``` \n\n" : 
+      "```\t\t" + prefix + "fancy Empire(For all text)\n\t\t" + prefix + "fancy 25 Empire(For specific text)```\n\n");
+    
+    let styleNumber = parseInt(input);
+    
+    if (isNaN(styleNumber)) {
+      let textToStyle = input ? input : "Empire";
+      listall(textToStyle).forEach((styledText, index) => {
+        outputText += "\n" + (index += 1) + " " + styledText + "\n";
+      });
+      try {
+        return await message.send(outputText, { caption: outputText }, '', msg);
+      } catch {
+        return await message.reply(outputText);
+      }
+    }
+    
+    let styledText = await fancytext('' + input.slice(2), styleNumber);
+    return await message.send(styledText, {}, '', message);
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: fancy", error);
+  }
+});
+
+// ==================== STYLY COMMAND (Style Text) ====================
+smd({
+  pattern: 'styly',
+  desc: "Downloads wikimedia images.",
+  category: "converter",
+  filename: __filename,
+  use: '<text|search.>'
+}, async (message, input) => {
+  try {
+    let searchText = input.trim();
+    let headerText = "┏━━━━━━━━━━━━━━━━━━━━━━━━\n┃\t*💬EMPIRE-MD_FANCY_TEXT💬* \n┗━━━━━━━━━━━━━━━━━━━━━━━━\n\n " + 
+      (searchText ? "```🔢Reply the number you wants to select``` \n\n" : 
+      "```\t\t" + prefix + "styly Empire(For all text)\n\t\t" + prefix + "styly 19 Empire(For specific text)```\n\n");
+    
+    let { styletext } = require("../lib/scraper");
+    let selectedIndex = searchText ? parseInt(searchText) : '';
+    searchText = selectedIndex && !isNaN(selectedIndex) ? searchText.slice(2) : searchText;
+    
+    let styleResults = (await styletext(searchText ? searchText : "Empire")) || [];
+    
+    if (!styleResults || !styleResults[0]) {
+      return await message.send("*_No Results Found!_*");
+    }
+    
+    let resultText = '';
+    if (isNaN(selectedIndex) || selectedIndex > styleResults.length || selectedIndex < 0 || !searchText) {
+      for (let i = 0; i < styleResults.length; i++) {
+        resultText += "\n" + i + " " + styleResults[i].result + " " + (searchText.length > 50 ? "\n\n" : '');
+      }
+      return await message.send(headerText + resultText);
+    }
+    
+    return await message.send(styleResults[selectedIndex].result, {}, '', message);
+  } catch (error) {
+    message.error(error + "\n\ncommand: styly", error);
+  }
+});
+
+// ==================== TINY COMMAND (URL Shortener) ====================
+smd({
+  pattern: 'tiny',
+  desc: "Makes url tiny.",
+  category: "converter",
+  use: '<url>',
+  react: '✅',
+  filename: __filename
+}, async (message, input) => {
+  try {
+    if (!input || !input.toLowerCase().includes('https')) {
+      return message.reply("Provide me a link");
+    }
+    let url = input.split(" ")[0];
+    let shortenedUrl = await axios.get("https://tinyurl.com/api-create.php?url=" + url);
+    message.reply(langText("converter", "short_url", { url: shortenedUrl.data }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    message.error(error + "\n\ncmdName: tiny", error, false);
+  }
+});
+
+// ==================== FLIPTEXT COMMAND ====================
+smd({
+  pattern: 'fliptext',
+  desc: "Flips given text.",
+  category: "converter",
+  use: "<query>",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let text = input ? input : message.reply_text;
+    if (!text) {
+      return message.reply(langText("converter", "flip_example", { prefix }, message.userLang || global.currentUserLang));
+    }
+    let flippedText = text.split('').reverse().join('');
+    await message.reply(langText("converter", "flip_header", { text, flipped: flippedText }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    message.error(error + "\n\ncommand : fliptext", error);
+  }
+});
+
+// ==================== EBINARY COMMAND (Encode to Binary) ====================
+smd({
+  pattern: "ebinary",
+  desc: "encode binary",
+  category: 'converter',
+  use: "<query>",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let text = input ? input : message.reply_text;
+    if (!text) {
+      return message.reply(langText("msgs", "provide_text", {}, message.userLang || global.currentUserLang));
+    }
+    let binaryText = text.split('').map(char => {
+      return char.charCodeAt(0).toString(2);
+    }).join(" ");
+    await message.reply(binaryText);
+  } catch (error) {
+    await message.error(error + "\n\ncommand : ebinary", error);
+  }
+});
+
+// ==================== DBINARY COMMAND (Decode from Binary) ====================
+smd({
+  pattern: 'dbinary',
+  desc: "decode binary",
+  category: "converter",
+  use: "<query>",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let binaryText = input ? input : message.reply_text;
+    if (!binaryText) {
+      return message.reply("Send text to be decoded.");
+    }
+    var binaryArray = binaryText.split(" ");
+    var decodedChars = [];
+    for (let i = 0; i < binaryArray.length; i++) {
+      decodedChars.push(String.fromCharCode(parseInt(binaryArray[i], 2)));
+    }
+    await message.reply(decodedChars.join(''));
+  } catch (error) {
+    await message.error(error + "\n\ncommand : dbinary", error);
+  }
+});
+
+
+// ==================== OBFUSCATOR COMMAND ============
+smd({
+  pattern: 'obfuscator',
+  alias: ['obfuscate', 'obf'],
+  category: 'converter',
+  filename: __filename,
+  use: "< reply to code/file or write code >",
+  desc: "Obfuscates JavaScript code to protect it."
+}, async (message, input) => {
+  try {
+    let code = "";
+    let isFile = false;
+    let filename = "obfuscated.js";
+
+    if (message.reply_message) {
+      if (message.reply_message.mtype === 'documentMessage') {
+        let mediaFile = await message.bot.downloadAndSaveMediaMessage(message.reply_message);
+        if (mediaFile) {
+          code = fs.readFileSync(mediaFile, 'utf8');
+          try { fs.unlinkSync(mediaFile); } catch {}
+          isFile = true;
+          if (message.reply_message.fileName) {
+            filename = "obfuscated_" + message.reply_message.fileName;
+          }
+        }
+      } else {
+        code = message.reply_message.text;
+      }
+    }
+
+    if (!code && input) {
+      code = input;
+    }
+
+    if (!code) {
+      return await message.reply(langText("msgs", "need_reply_code", {}, message.userLang || global.currentUserLang));
+    }
+
+    // Obfuscate code
+    const obfuscationResult = JavaScriptObfuscator.obfuscate(code, {
+      compact: true,
+      controlFlowFlattening: true,
+      controlFlowFlatteningThreshold: 1,
+      numbersToExpressions: true,
+      simplify: true,
+      stringArrayShuffle: true,
+      splitStrings: true,
+      stringArrayThreshold: 1
+    });
+    const obfuscatedCode = obfuscationResult.getObfuscatedCode();
+
+    if (isFile || obfuscatedCode.length > 2000) {
+      // Send as document/file
+      let tempFilePath = `./temp/${filename}`;
+      if (!fs.existsSync('./temp')) {
+        fs.mkdirSync('./temp');
+      }
+      fs.writeFileSync(tempFilePath, obfuscatedCode);
+      
+      await message.bot.sendMessage(message.chat, {
+        document: { url: tempFilePath },
+        mimetype: "application/javascript",
+        fileName: filename,
+        caption: `*Obfuscated Successfully!* \n\n${Config.caption}`
+      }, { quoted: message });
+
+      try { fs.unlinkSync(tempFilePath); } catch {}
+    } else {
+      // Send as text
+      await message.reply("```" + obfuscatedCode + "```");
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: obfuscator", error);
+  }
+});
+
+// ==================== DEOBFUSCATOR COMMAND ============
+smd({
+  pattern: 'deobfuscator',
+  alias: ['deobfuscate', 'deobf'],
+  category: 'converter',
+  filename: __filename,
+  use: "< reply to obfuscated code/file or write code >",
+  desc: "Deobfuscates hex/unicode escape sequences and basic packed JavaScript."
+}, async (message, input) => {
+  try {
+    let code = "";
+    let isFile = false;
+    let filename = "deobfuscated.js";
+
+    if (message.reply_message) {
+      if (message.reply_message.mtype === 'documentMessage') {
+        let mediaFile = await message.bot.downloadAndSaveMediaMessage(message.reply_message);
+        if (mediaFile) {
+          code = fs.readFileSync(mediaFile, 'utf8');
+          try { fs.unlinkSync(mediaFile); } catch {}
+          isFile = true;
+          if (message.reply_message.fileName) {
+            filename = "deobfuscated_" + message.reply_message.fileName;
+          }
+        }
+      } else {
+        code = message.reply_message.text;
+      }
+    }
+
+    if (!code && input) {
+      code = input;
+    }
+
+    if (!code) {
+      return await message.reply(langText("msgs", "need_reply_code", {}, message.userLang || global.currentUserLang));
+    }
+
+    // Simple deobfuscation: decode unicode and hex escapes
+    let deobfuscated = code;
+    // Decode hex escapes: \x41 -> A
+    deobfuscated = deobfuscated.replace(/\\x([0-9a-fA-F]{2})/g, (match, hex) => {
+      try {
+        return String.fromCharCode(parseInt(hex, 16));
+      } catch {
+        return match;
+      }
+    });
+    // Decode unicode escapes: \u0041 -> A
+    deobfuscated = deobfuscated.replace(/\\u([0-9a-fA-F]{4})/g, (match, uni) => {
+      try {
+        return String.fromCharCode(parseInt(uni, 16));
+      } catch {
+        return match;
+      }
+    });
+
+    if (isFile || deobfuscated.length > 2000) {
+      // Send as document/file
+      let tempFilePath = `./temp/${filename}`;
+      if (!fs.existsSync('./temp')) {
+        fs.mkdirSync('./temp');
+      }
+      fs.writeFileSync(tempFilePath, deobfuscated);
+      
+      await message.bot.sendMessage(message.chat, {
+        document: { url: tempFilePath },
+        mimetype: "application/javascript",
+        fileName: filename,
+        caption: `*Deobfuscated Successfully!* \n\n${Config.caption}`
+      }, { quoted: message });
+
+      try { fs.unlinkSync(tempFilePath); } catch {}
+    } else {
+      // Send as text
+      await message.reply("```" + deobfuscated + "```");
+    }
+  } catch (error) {
+    await message.error(error + "\n\ncommand: deobfuscator", error);
+  }
+});
+
+
+
+// ==================== QR COMMAND ====================
+smd({
+  pattern: 'qr',
+  category: 'converter',
+  filename: __filename,
+  use: "< text >",
+  desc: "Sends QR code to scan and get your text."
+}, async (message, text) => {
+  try {
+    if (!text) {
+      return message.reply(langText("msgs", "provide_qr", {}, message.userLang || global.currentUserLang));
+    }
+    let qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=" + text;
+    await message.bot.sendUi(message.jid, {
+      caption: "*_Scan Qr To Get You Text_*"
+    }, {
+      quoted: message
+    }, "image", qrUrl);
+  } catch (error) {
+    await message.error(error + "\n\ncommand : qr", error);
+  }
+});
+
+// ==================== PASTE COMMAND ====================
+smd({
+  pattern: "paste",
+  desc: "create paste of text.",
+  category: 'converter',
+  use: "< text >",
+  filename: __filename
+}, async (message, input) => {
+  try {
+    let textToPaste = input ? input : message.reply_text;
+    if (!Config.TELEGRAPH_TOKEN) {
+      return await message.reply("*_Telegraph token not configured (TELEGRAPH_TOKEN)._*\nSet it in your `.env` file.");
+    }
+    let { data: pasteResult } = await axios.get(
+      "https://api.telegra.ph/createPage?access_token=" + Config.TELEGRAPH_TOKEN + "&title=Empire-Md+Bot&author_name=Empire_Tech_Labs&content=[%7B\"tag\":\"p\",\"children\":[\"" + 
+      textToPaste.replace(/ /g, '+') + 
+      "\"]%7D]&return_content=true"
+    );
+    return message.reply(langText("converter", "paste_created", { title: util.format(pasteResult.result.title), url: util.format(pasteResult.result.url) }, message.userLang || global.currentUserLang));
+  } catch (error) {
+    await message.error(error + "\n\ncommand: paste ", error, false);
+  }
+});
+
+// ==================== PHOTO COMMAND (Sticker to Photo) ====================
+let imageTypes = ["imageMessage", 'stickerMessage'];
+
+smd({
+  cmdname: 'photo',
+  info: "Makes photo of replied sticker.",
+  type: "converter",
+  use: "<reply to any gif>",
+  filename: __filename
+}, async (message) => {
+  try {
+    let mediaMessage = imageTypes.includes(message.mtype) ? message : message.reply_message;
+    if (!mediaMessage || !imageTypes.includes(mediaMessage?.["mtype"])) {
+      return message.reply(langText("converter", "reply_sticker", {}, message.userLang || global.currentUserLang));
+    }
+    let mediaPath = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+    await message.bot.sendMessage(message.jid, {
+      image: { url: mediaPath },
+      mimetype: "image/jpeg"
+    });
+    try {
+      fs.unlinkSync(mediaPath);
+    } catch (error) {}
+  } catch (error) {
+    message.error(error + "\n\ncmdName: photo\n", error, false);
+  }
+});
+
+// ==================== TOAUDIO COMMAND (Video to Audio) ====================
+let audioTypes = ["audioMessage", 'videoMessage'];
+
+smd({
+  pattern: "toaudio",
+  alias: ["mp3", "tomp3"],
+  desc: "changes type to audio.",
+  category: "converter",
+  use: "<reply to any Video>",
+  filename: __filename
+}, async (message) => {
+  try {
+    let mediaMessage = audioTypes.includes(message.mtype) ? message : message.reply_message;
+    if (!mediaMessage || !audioTypes.includes(mediaMessage?.["mtype"])) {
+      return message.reply(langText("converter", "reply_video", {}, message.userLang || global.currentUserLang));
+    }
+    let mediaPath = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+    const { toAudio } = require('../lib');
+    let mediaFile = fs.readFileSync(mediaPath);
+    let audioBuffer = await toAudio(mediaFile);
+    try {
+      fs.unlink(mediaPath);
+    } catch (error) {}
+    return await message.bot.sendMessage(message.jid, {
+      audio: audioBuffer,
+      mimetype: "audio/mpeg"
+    });
+  } catch (error) {
+    message.error(error + "\n\ncmdName: toaudio", error);
+  }
+});
+
+// ==================== VOICE COMMAND (PTT) ====================
+smd({
+  pattern: "voice",
+  alias: ['ptt', "toptt"],
+  desc: "adds bass in given sound",
+  category: "converter",
+  use: "<reply to any audio>"
+}, async (message) => {
+  try {
+    let mediaMessage = audioTypes.includes(message.mtype) ? message : message.reply_message;
+    if (!mediaMessage || !audioTypes.includes(mediaMessage?.["mtype"])) {
+      return message.reply(langText("converter", "reply_audio_video", {}, message.userLang || global.currentUserLang));
+    }
+    let mediaBuffer = await mediaMessage.download();
+    return await message.bot.sendMessage(message.jid, {
+      audio: mediaBuffer,
+      mimetype: "audio/mpeg",
+      ptt: true
+    }, {
+      quoted: message
+    });
+  } catch (error) {
+    message.error(error + "\n\ncmdName: voice", error);
+  }
+});
+
+// ==================== TOMP4 COMMAND (Sticker/GIF to MP4) ====================
+smd({
+  pattern: "tomp4",
+  alias: ["mp4", "tovideo"],
+  desc: "convert sticker to mp4.",
+  category: "converter",
+  use: "<reply to any Video>",
+  filename: __filename
+}, async (message) => {
+  let mediaMessage = message.mtype === 'videoMessage' ? message : message.reply_message;
+  
+  if (!mediaMessage) {
+    return message.reply(langText("converter", "reply_animated", {}, message.userLang || global.currentUserLang));
+  }
+  
+  const { webp2mp4File } = require("../lib");
+  let mimetype = mediaMessage?.["mimetype"] || '';
+  
+  if (mediaMessage?.["mtype"] != "videoMessage" && !/webp/.test(mimetype)) {
+    return await message.send("*Damn... Reply To An Animated Sticker or Gif *");
+  }
+  
+  let mediaPath = await message.bot.downloadAndSaveMediaMessage(mediaMessage);
+  
+  try {
+    try {
+      if (/webp/.test(mimetype)) {
+        let conversionResult = await webp2mp4File(mediaPath);
+        mediaPath = conversionResult.result;
+      }
+    } catch (conversionError) {
+      console.log("error while converting sticker to mp4\n", conversionError);
+    }
+    await message.bot.sendMessage(message.jid, {
+      video: { url: mediaPath },
+      caption: Config.caption
+    });
+    try {
+      await fs.unlink(mediaPath);
+    } catch (error) {}
+  } catch (error) {
+    message.error(error + "\n\ncmdName: tomp4", error);
+  }
+});
+
+// ==================== TTP COMMAND (Text to Picture Sticker) ====================
+function splitTextIntoLines(text, context, maxWidth) {
+  const words = text.split(" ");
+  const lines = [];
+  let currentLine = '';
+  
+  for (const word of words) {
+    const testLine = currentLine === '' ? word : currentLine + " " + word;
+    const lineWidth = context.measureText(testLine).width;
+    if (lineWidth <= maxWidth) {
+      currentLine = testLine;
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  
+  if (currentLine !== '') {
+    lines.push(currentLine);
+  }
+  return lines;
+}
+
+smd({
+  cmdname: 'ttp',
+  alias: ["roundstic", 'roundsticker'],
+  info: "Makes sticker of replied image/video.",
+  type: 'sticker',
+  filename: __filename,
+  use: "<reply to image.>"
+}, async (message, input) => {
+  try {
+    let textContent = input || message.reply_text;
+    
+    if (textContent) {
+      let styleNumber = parseInt(textContent) || '';
+      if (styleNumber && !isNaN(styleNumber)) {
+        textContent = await fancytext('' + textContent.slice(2), styleNumber);
+      }
+      
+      const { createCanvas } = require("canvas");
+      const fileSystem = require('fs');
+      const canvas = createCanvas(300, 300);
+      const canvasContext = canvas.getContext('2d');
+      
+      canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+      canvasContext.font = "20px Arial";
+      canvasContext.fillStyle = "black";
+      canvasContext.textAlign = "center";
+      
+      const textLines = splitTextIntoLines(textContent, canvasContext, 280);
+      const totalTextHeight = textLines.length * 25;
+      const startY = (300 - totalTextHeight) / 2;
+      
+      textLines.forEach((line, index) => {
+        const yPosition = startY + index * 25;
+        canvasContext.fillText(line, 150, yPosition);
+      });
+      
+      const imageStream = canvas.createPNGStream();
+      const writeStream = fileSystem.createWriteStream("./temp/ttp.png");
+      imageStream.pipe(writeStream);
+      
+      writeStream.on('finish', async () => {
+        console.log("Image created:", "./temp/ttp.png");
+        let imageBuffer = fileSystem.readFileSync("./temp/ttp.png");
+        let stickerOptions = {
+          pack: Config.packname,
+          author: Config.author,
+          type: StickerTypes.ROUNDED,
+          quality: 50
+        };
+        await generateSticker(message, imageBuffer, stickerOptions);
+        return imageBuffer = false;
+      });
+    } else {
+      return message.reply(langText("converter", "provide_ttp", {}, message.userLang || global.currentUserLang));
+    }
+  } catch (error) {
+    return await message.error(error + "\n\ncmdName: ttp\n");
+  }
+});
