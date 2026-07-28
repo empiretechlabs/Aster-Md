@@ -17,7 +17,7 @@ global.blockJids= process.env.BLOCK_JID || "null"
 global.DATABASE_URL = process.env.DATABASE_URL || "false"
 
 global.timezone= process.env.TZ || process.env.TIME_ZONE || "Africa/Lagos";
-global.github=process.env.GITHUB|| "https://github.com/empiretechlabs/Empire-Md";
+global.github=process.env.GITHUB|| "https://github.com/empiretechlabs/Aster-Md";
 global.gurl  =process.env.GURL  || "https://whatsapp.com/channel/0029VagJIAr3bbVBCpEkAM07";
 global.website =process.env.WEBURL || "https://whatsapp.com/channel/0029VagJIAr3bbVBCpEkAM07" ; 
 global.THUMB_IMAGE = process.env.THUMB_IMAGE || process.env.IMAGE || "https://i.ibb.co/TgwRyHR/Ephoto360-com-166de101e03cd7.jpg" || "https://i.ibb.co/bH1kbX0/a4c0b1af253197d4837ff6760d5b81c0.jpg" ; //DO NOT SET LOGO FOR IMAGE 
