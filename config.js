@@ -75,7 +75,7 @@ global.isMongodb = false;
 module.exports = {
   antilink_values: process.env.ANTILINK_VALUES || "all",
   author: process.env.PACK_AUTHER || "𝖤𝗆𝗉𝗂𝗋𝖾 𝖳𝖾𝖼𝗁",
-  botname: process.env.BOT_NAME || "Empire-Md",
+  botname: process.env.BOT_NAME || "Aster-Md",
   BRANCH: process.env.BRANCH || "main",
   caption: global.caption || "```『 ᴘᴏᴡᴇʀᴇᴅ ʙʏ Empire Tech Labs ® 』```",
   errorChat: process.env.ERROR_CHAT || "",
