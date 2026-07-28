@@ -13,7 +13,7 @@
 ---
 
 <p align="center">
-  <a href="https://chat.whatsapp.com/DG86OkvmerHKHJjkE5X2Wv" target="_blank">
+  <a href="https://chat.whatsapp.com/DB5ovEJnYzTGVxAKoEjvno" target="_blank">
     <img src="https://img.shields.io/badge/Join%20Group-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="Join Group" />
   </a>
   <a href="https://github.com/efeurhobobullish/Aster-Md/blob/main/LICENCE" target="_blank">
@@ -38,8 +38,8 @@
 Before deploying, you need:
 
 1. **Session ID** — Get it by:
-   - [Pairing](https://session.empiretech.net.ng/pair), or  
-   - [QR code](https://session.empiretech.net.ng/qr) (WhatsApp → **Linked Devices** → Link a device)
+   - [Pairing](https://session.empiretech.com.ng/pair), or  
+   - [QR code](https://session.empiretech.com.ng/qr) (WhatsApp → **Linked Devices** → Link a device)
 
 2. **MongoDB URI** — Create a database and get your connection string.
    - [MongoDB setup guide](https://github.com/efeurhobobullish/Aster-Md/wiki/Mongodb-URI)  
@@ -76,7 +76,7 @@ Before deploying, you need:
 
 ## Support
 
-- **WhatsApp group:** [Join here](https://chat.whatsapp.com/DG86OkvmerHKHJjkE5X2Wv)
+- **WhatsApp group:** [Join here](https://chat.whatsapp.com/DB5ovEJnYzTGVxAKoEjvno)
 
 If Aster-Md is useful to you, consider giving the repo a **star** ⭐.
 
