@@ -1,13 +1,3 @@
-/**
- * @project_name : Empire-Md
- * @author : Empire Tech Labs
- * @youtube : https://www.youtube.com/@only_one_empire
- * @description : Empire-Md, A Multi-functional whatsapp user bot.
- * @version 1.2.8
- * Created By Empire Tech Labs.
- * © 2026 Empire-Md.
- */
-
 const {
   plugins,
   isUrl,
