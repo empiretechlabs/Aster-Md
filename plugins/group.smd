@@ -53,7 +53,9 @@ const {
   updateProfilePicture,
   parsedJid,
   langText,
-  tr
+  tr,
+  handleChatbot,
+  resetChatSession
 } = require("../lib");
 
 const {
@@ -108,9 +110,6 @@ let warn = {
     }
   }
 };
-
-let bott = false;
-let chatbotCount = 0;
 
 let users = {};
 let user_warns = {};
@@ -1685,7 +1684,7 @@ smd({
                       (await groupdb.new({ id: message.chat }));
     
     let botConfig = (await bot_.findOne({ id: "bot_" + message.user })) || 
-                    (await groupdb.new({ id: 'bot_' + message.user })) || 
+                    (await bot_.new({ id: 'bot_' + message.user })) || 
                     { chatbot: "false" };
 
     if (mode == "all" || mode === "global") {
@@ -1695,6 +1694,10 @@ smd({
       await bot_.updateOne({ id: 'bot_' + message.user }, { chatbot: "true" });
       return await message.send('*' + cmdName + " successfully enabled to all chats!.*");
     } 
+    else if (mode.startsWith("reset") || mode.startsWith("clear")) {
+      await resetChatSession(message);
+      return await message.send("*Chatbot memory cleared for this chat.*");
+    }
     else if (mode.startsWith('on') || mode.startsWith('act') || mode.startsWith('enable')) {
       if (groupConfig.chatbot == 'true' || botConfig.chatbot == 'true') {
         return await message.send('*' + cmdName + " was already enabled.*");
@@ -3176,25 +3179,8 @@ smd({
     }
 
       try {
-      if (!global.SmdOfficial || message.mtype == "reactionMessage") {
-        return;
-      }
-      let botConfig = (await bot_.findOne({ id: "bot_" + message.user })) || { chatbot: "false" };
-      let chatbotEnabled = botConfig.chatbot === "true" || (groupConfig && groupConfig.chatbot === "true")
-        ? "true"
-        : "false";
-
-      if (chatbotEnabled === "true" && !icmd && !message.isBot && !message.fromMe && (budy || message.text)) {
-        let prompt = (budy || message.text || "").trim();
-        if (!prompt) return;
-
-        const response = await smdJson(
-          `https://prexzyapis.com/ai/ch?q=${encodeURIComponent(prompt)}`
-        );
-
-        if (response && response.status === true && response.response) {
-          await message.reply(response.response);
-        }
+      if (global.SmdOfficial === "yes" && message.mtype !== "reactionMessage") {
+        await handleChatbot(message, { icmd, budy, groupConfig });
       }
     } catch (error) {
       console.log("Error From ChatBot : ", error);
