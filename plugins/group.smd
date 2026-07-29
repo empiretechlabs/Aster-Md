@@ -3179,32 +3179,21 @@ smd({
       if (!global.SmdOfficial || message.mtype == "reactionMessage") {
         return;
       }
-      let chatConfig = (await groupdb.findOne({ id: message.chat })) || { chatbot: "false" };
-      
-      if (!bott || chatbotCount >= 10) {
-        bott = (await bot_.findOne({ id: "bot_" + message.user })) || { chatbot: "false" };
-      } else {
-        chatbotCount++;
-      }
-      
-      let chatbotEnabled = bott && bott.chatbot && bott.chatbot == "true" ? "true" : chatConfig.chatbot || "false";
-      
-      if (chatbotEnabled === "true" && !icmd && !message.isBot && message.text) {
-        let targetCheck = !message.isGroup ? message.user : 
-          message.quoted ? message.quoted.sender : message.mentionedJid[0] || false;
-        
-        if (message.isGroup && targetCheck && !message.checkBot(targetCheck)) {
-          return;
-        }
-        
-        // PrinceTech AI Chatbot
-        let prompt = budy || message.text;
+      let botConfig = (await bot_.findOne({ id: "bot_" + message.user })) || { chatbot: "false" };
+      let chatbotEnabled = botConfig.chatbot === "true" || (groupConfig && groupConfig.chatbot === "true")
+        ? "true"
+        : "false";
+
+      if (chatbotEnabled === "true" && !icmd && !message.isBot && !message.fromMe && (budy || message.text)) {
+        let prompt = (budy || message.text || "").trim();
+        if (!prompt) return;
+
         const response = await smdJson(
-          `https://api.princetechn.com/api/ai/chat?apikey=prince&q=${encodeURIComponent(prompt)}`
+          `https://prexzyapis.com/ai/ch?q=${encodeURIComponent(prompt)}`
         );
 
-        if (response && response.status === 200 && response.success && response.result) {
-          message.send(response.result, {}, "empire", message);
+        if (response && response.status === true && response.response) {
+          await message.reply(response.response);
         }
       }
     } catch (error) {

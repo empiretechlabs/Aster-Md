@@ -65,6 +65,7 @@ const {
   smdBuffer,
   prefix,
   bot_,
+  groupdb,
   react
   } = require('../lib')
 let utd = false;
@@ -90,6 +91,13 @@ async( message, text) => {
       if(!msg  || msg.reaction || msg.protocol || msg.pollUpdate ) return "Not Allowed"
         if(!bots || utd ){ bots = await bot_.findOne({id: `bot_${msg.user}` }); utd=false} 
         if(!bots || !bots.autoreaction || bots.autoreaction==="false") return "AUTO REACTION DISABLED"
+
+        const chatConfig = msg.isGroup
+          ? ((await groupdb.findOne({ id: msg.chat })) || { chatbot: "false" })
+          : { chatbot: "false" };
+        const chatbotOn = bots.chatbot === "true" || chatConfig.chatbot === "true";
+        if (chatbotOn) return;
+
         if((bots.autoreaction === 'group' && !msg.isGroup) || (bots.autoreaction === 'pm' && msg.isGroup)   ) return "pm/group not found for auto reaction"
 
 
