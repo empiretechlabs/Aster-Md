@@ -1,0 +1,22 @@
+{
+  "$schema": "https://orzn.io/schema/orizon.json",
+  "projectId": "proj_aster_md",
+  "name": "aster-md",
+  "framework": "node",
+  "servingMode": "server",
+  "productionBranch": "main",
+  "url": "https://aster-md.orzn.app",
+  "orizon": {
+    "dashboard": "https://dashboard.orizon.ng/projects/proj_aster_md",
+    "api": "https://api.orizon.ng/api/v1",
+    "openapi": "https://api.orizon.ng/api/v1/openapi.json",
+    "mcp": {
+      "command": "orizon",
+      "args": [
+        "mcp"
+      ]
+    },
+    "docs": "https://orzn.io/docs",
+    "llms": "https://orzn.io/llms.txt"
+  }
+}
